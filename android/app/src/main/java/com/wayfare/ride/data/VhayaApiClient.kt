@@ -5,9 +5,9 @@ import com.wayfare.ride.domain.AdminOverviewSummary
 import com.wayfare.ride.domain.ComplianceStatus
 import com.wayfare.ride.domain.DriverApplication
 import com.wayfare.ride.domain.DriverComplianceCheck
-import com.wayfare.ride.domain.DriverDocumentType
 import com.wayfare.ride.domain.DriverEarningsSummary
 import com.wayfare.ride.domain.DriverPayoutRecord
+import com.wayfare.ride.domain.DriverSubscriptionPlan
 import com.wayfare.ride.domain.DriverSubscriptionSummary
 import com.wayfare.ride.domain.LaunchPolicy
 import com.wayfare.ride.domain.NavigationStep
@@ -110,7 +110,9 @@ fun Throwable.toFriendlyApiException(): Throwable = when (this) {
 
 class VhayaApiClient(
     private val firebaseAuthBaseUrl: String = "https://identitytoolkit.googleapis.com",
-    private val firebaseTokenBaseUrl: String = "https://securetoken.googleapis.com"
+    private val firebaseTokenBaseUrl: String = "https://securetoken.googleapis.com",
+    private val backendBaseUrlProvider: () -> String = { "" },
+    private val backendSessionIdProvider: () -> String? = { null }
 ) {
     private val json = Json {
         ignoreUnknownKeys = true
@@ -265,6 +267,38 @@ class VhayaApiClient(
     )
 
     @Serializable
+    private data class SubscriptionPlanDto(
+        val id: String,
+        val name: String,
+        val description: String? = null,
+        val amountMinor: Long,
+        val currency: String = "ZAR",
+        val billingInterval: String,
+        val renewalMode: String = "manual"
+    ) {
+        fun toDomain() = DriverSubscriptionPlan(
+            id = id,
+            name = name,
+            description = description,
+            amountMinor = amountMinor,
+            currency = currency,
+            billingInterval = billingInterval,
+            renewalMode = renewalMode
+        )
+    }
+
+    @Serializable
+    private data class SubscriptionOfferDto(val plan: SubscriptionPlanDto)
+
+    @Serializable
+    private data class SubscriptionOffersEnvelope(
+        val plans: List<SubscriptionOfferDto> = emptyList()
+    )
+
+    @Serializable
+    private data class ClaimedSessionEnvelope(val sessionId: String = "")
+
+    @Serializable
     private data class SupportCasesEnvelope(
         val cases: List<SupportCase> = emptyList()
     )
@@ -302,6 +336,53 @@ class VhayaApiClient(
             trimmed
         }
     }
+
+    private fun accountSessionFor(url: URL): String? {
+        val baseUrl = backendBaseUrlProvider().trim()
+        if (baseUrl.isBlank()) return null
+        return runCatching {
+            val backend = URL(cleanUrl(baseUrl))
+            val backendPort = if (backend.port == -1) backend.defaultPort else backend.port
+            val requestPort = if (url.port == -1) url.defaultPort else url.port
+            if (
+                url.protocol.equals(backend.protocol, ignoreCase = true) &&
+                url.host.equals(backend.host, ignoreCase = true) &&
+                requestPort == backendPort
+            ) {
+                backendSessionIdProvider()?.takeIf { it.isNotBlank() }
+            } else {
+                null
+            }
+        }.getOrNull()
+    }
+
+    suspend fun claimBackendSession(baseUrl: String, token: String): Result<String> =
+        withContext(Dispatchers.IO) {
+            runCatching {
+                val (code, raw) = executeRequest(
+                    "${cleanUrl(baseUrl)}/api/auth/session/claim",
+                    method = "POST",
+                    bearerToken = token,
+                    includeApiSession = false
+                )
+                ensureSuccess(code, raw)
+                json.decodeFromString<ClaimedSessionEnvelope>(raw).sessionId
+                    .takeIf { it.isNotBlank() }
+                    ?: error("The server did not return an account session.")
+            }
+        }
+
+    suspend fun releaseBackendSession(baseUrl: String, token: String): Result<Unit> =
+        withContext(Dispatchers.IO) {
+            runCatching {
+                val (code, raw) = executeRequest(
+                    "${cleanUrl(baseUrl)}/api/auth/session",
+                    method = "DELETE",
+                    bearerToken = token
+                )
+                ensureSuccess(code, raw)
+            }
+        }
 
     private fun isLoopbackUrl(baseUrl: String): Boolean {
         val clean = baseUrl.trim().lowercase()
@@ -710,47 +791,7 @@ class VhayaApiClient(
         category: NearbyPlaceCategory = NearbyPlaceCategory.ALL,
         radiusMeters: Int = 15_000
     ): Result<List<PlaceSearchSuggestion>> = withContext(Dispatchers.IO) {
-        val trimmedUrl = cleanUrl(baseUrl)
         val clampedRadius = radiusMeters.coerceIn(1_500, 35_000)
-
-        if (trimmedUrl.isNotBlank()) {
-            val backendRes = runCatching {
-                val payload = buildJsonObject {
-                    put("coordinates", buildJsonObject {
-                        put("latitude", coordinates.latitude)
-                        put("longitude", coordinates.longitude)
-                    })
-                    put("category", category.key)
-                    put("radiusMeters", clampedRadius)
-                }.toString()
-                val (code, raw) = executeRequest(
-                    "$trimmedUrl/api/places/nearby",
-                    method = "POST",
-                    body = payload,
-                    bearerToken = token
-                )
-                ensureSuccess(code, raw)
-                json.decodeFromString<PlacesSearchEnvelope>(raw).places.map { place ->
-                    val resolvedCategory = LaunchPolicy.inferPlaceCategory(
-                        place.label,
-                        place.category ?: category.takeIf { it != NearbyPlaceCategory.ALL }?.key
-                    )
-                    place.copy(
-                        category = resolvedCategory,
-                        distanceMeters = place.distanceMeters
-                            ?: LaunchPolicy.distanceMeters(coordinates, place.coordinates)
-                    )
-                }.sortedBy { it.distanceMeters ?: Double.MAX_VALUE }
-            }
-            val backendList = backendRes.getOrNull()
-            if (backendList != null && backendList.isNotEmpty()) {
-                return@withContext Result.success(backendList)
-            }
-            if (isLoopbackUrl(trimmedUrl)) {
-                return@withContext backendRes
-            }
-        }
-
         searchOverpassNearbyPlaces(
             origin = coordinates,
             category = category,
@@ -1318,11 +1359,33 @@ class VhayaApiClient(
     ): Result<Unit> = withContext(Dispatchers.IO) {
         runCatching {
             val payload = buildJsonObject {
+                put("location", buildJsonObject {
+                    put("latitude", coords.latitude)
+                    put("longitude", coords.longitude)
+                })
+            }.toString()
+            val (code, raw) = executeRequest(
+                "${cleanUrl(baseUrl)}/api/rides/${enc(tripId)}/location",
+                method = "PATCH",
+                body = payload,
+                bearerToken = token
+            )
+            ensureSuccess(code, raw)
+        }
+    }
+
+    suspend fun updateDriverProfileLocation(
+        baseUrl: String,
+        token: String,
+        coords: RideCoordinates
+    ): Result<Unit> = withContext(Dispatchers.IO) {
+        runCatching {
+            val payload = buildJsonObject {
                 put("latitude", coords.latitude)
                 put("longitude", coords.longitude)
             }.toString()
             val (code, raw) = executeRequest(
-                "${cleanUrl(baseUrl)}/api/rides/${enc(tripId)}/location",
+                "${cleanUrl(baseUrl)}/api/driver/profile/location",
                 method = "PATCH",
                 body = payload,
                 bearerToken = token
@@ -1655,35 +1718,6 @@ class VhayaApiClient(
             } else {
                 fetchDriverProfile(baseUrl, token, fallbackName, fallbackEmail).getOrNull()
                     ?: error("Driver application profile missing")
-            }
-        }
-    }
-
-    suspend fun uploadDriverDocument(
-        baseUrl: String,
-        token: String,
-        docType: DriverDocumentType,
-        fileName: String,
-        contentType: String,
-        bytes: ByteArray,
-        fallbackName: String,
-        fallbackEmail: String?
-    ): Result<DriverApplication> = withContext(Dispatchers.IO) {
-        runCatching {
-            val (code, raw) = executeRawUpload(
-                urlString = "${cleanUrl(baseUrl)}/api/driver/application/documents/${enc(docType.key)}",
-                contentType = contentType,
-                fileName = fileName,
-                bytes = bytes,
-                bearerToken = token
-            )
-            ensureSuccess(code, raw)
-            val dto = runCatching { json.decodeFromString<DriverProfileEnvelope>(raw).resolvedProfile() }.getOrNull()
-            if (dto != null) {
-                dto.toDomain(fallbackName, fallbackEmail)
-            } else {
-                fetchDriverProfile(baseUrl, token, fallbackName, fallbackEmail).getOrNull()
-                    ?: error("Updated driver profile missing")
             }
         }
     }

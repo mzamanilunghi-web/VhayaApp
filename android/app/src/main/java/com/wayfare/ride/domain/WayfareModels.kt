@@ -424,7 +424,8 @@ data class UserSession(
     val emailVerified: Boolean = true,
     val idToken: String? = null,
     val refreshToken: String? = null,
-    val expiresAtEpochMs: Long = 0L
+    val expiresAtEpochMs: Long = 0L,
+    val apiSessionId: String? = null
 )
 
 sealed interface AuthState {
@@ -513,6 +514,17 @@ data class DriverSubscriptionSummary(
     val status: String = "pending",
     val startedAt: Long = 0L,
     val expiresAt: Long? = null
+)
+
+@Serializable
+data class DriverSubscriptionPlan(
+    val id: String,
+    val name: String,
+    val description: String? = null,
+    val amountMinor: Long,
+    val currency: String = "ZAR",
+    val billingInterval: String,
+    val renewalMode: String = "manual"
 )
 
 @Serializable
