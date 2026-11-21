@@ -6,5 +6,5 @@
 - [Admin web confirmations](admin-web-confirmations.md) — use in-app dialogs for admin decisions; native alerts do not render in the Expo web preview.
 - [Wayfare ride flow](wayfare-ride-flow.md) — keep rider matching, driver confirmation, payment, and live ride states as clear stages, not one dense trip screen.
 - [Wayfare auth and storage direction](wayfare-auth-storage-plan.md) — Firebase/Firestore own identity and roles; PostgreSQL remains the source of truth for operations.
-- [Wayfare Android project boundary](wayfare-android-project-boundary.md) — the Android rider app is separate; expose and document backend contracts here, wire its UI in its own project.
+- [Wayfare Android project boundary](wayfare-android-project-boundary.md) — Android source lives in the same repo but keeps its own build/runtime and connects through HTTP APIs.
 - [Wayfare Return Rides](wayfare-return-rides.md) — Android Return Ride matching and pricing are built; preserve the return-request flag across the server API before calling it integrated.
