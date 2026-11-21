@@ -12,7 +12,7 @@ const JOURNEY_COPY: Record<Status, JourneyCopy> = {
   accepted: { title: "Your driver is on the way", detail: "Your pickup is confirmed. Keep an eye out for your driver.", marker: "Driver confirmed", stage: 1 },
   arrived: { title: "Meet your driver", detail: "Your driver is at the pickup point. Take a moment to find one another.", marker: "At pickup", stage: 2 },
   in_progress: { title: "Heading to your destination", detail: "You’re on your way. Your destination is below.", marker: "On the way", stage: 3 },
-  completed: { title: "You’ve arrived", detail: "Your journey is complete. Thanks for riding with Wayfare.", marker: "Journey complete", stage: 4, terminal: "completed" },
+  completed: { title: "You’ve arrived", detail: "Your journey is complete. Thanks for riding with Vhaya.", marker: "Journey complete", stage: 4, terminal: "completed" },
   cancelled: { title: "This ride was cancelled", detail: "This journey won’t continue. You can request another ride when you’re ready.", marker: "Ride ended", stage: -1, terminal: "cancelled" },
   unfulfilled: { title: "No driver was available", detail: "This request couldn’t be matched. Your pickup and destination are kept here for reference.", marker: "Request ended", stage: -1, terminal: "unfulfilled" },
 };

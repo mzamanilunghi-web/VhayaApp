@@ -8,7 +8,7 @@ export function Current() {
     <main className="do-current">
       <section className="do-device" aria-label="Driver application vehicle step">
         <header className="do-header">
-          <h1 className="do-title">Drive with Wayfare</h1>
+          <h1 className="do-title">Drive with Vhaya</h1>
           <Truck className="do-header-icon" aria-hidden="true" />
         </header>
         <p className="do-description">
@@ -56,7 +56,7 @@ export function Current() {
         </div>
         <p className="do-helper">
           No vehicle yet? Save a draft and return when you have vehicle details.
-          Wayfare has not connected a rental partner.
+          Vhaya has not connected a rental partner.
         </p>
         <div className="do-actions">
           <button className="do-button secondary" type="button">

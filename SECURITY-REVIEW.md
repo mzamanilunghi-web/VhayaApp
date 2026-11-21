@@ -1,4 +1,4 @@
-# Wayfare Production Readiness and Security Review
+# Vhaya Production Readiness and Security Review
 
 **Date:** 2026-10-28
 

@@ -7,7 +7,7 @@ export function DriverRequestAlert() {
   const reset = () => { setResponse(null); setShowCounter(true); };
   return <main className="wf-driver"><section className="wf-device">
     <div className="wf-statusbar"><span>9:41</span><span>•••　 4G　 ▰</span></div>
-    <header className="wf-brandbar"><div className="wf-wordmark">wayfare<b>.</b> <span style={{ fontSize: 10, color: "#727970", letterSpacing: ".2px", fontWeight: 600 }}>DRIVER</span></div><button className="wf-icon-button" aria-label="Close alert" onClick={reset}>×</button></header>
+    <header className="wf-brandbar"><div className="wf-wordmark">Vhaya<b>.</b> <span style={{ fontSize: 10, color: "#727970", letterSpacing: ".2px", fontWeight: 600 }}>DRIVER</span></div><button className="wf-icon-button" aria-label="Close alert" onClick={reset}>×</button></header>
     <section className="wf-screen" key={response ?? "incoming"}>
       <div className="wf-kicker">INCOMING RIDE REQUEST</div>
       <h1>New trip<br />near you.</h1>

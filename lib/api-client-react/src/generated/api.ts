@@ -375,7 +375,7 @@ export const getGetAccountDeletionPageUrl = () => {
 }
 
 /**
- * @summary Get the public Wayfare account deletion request page
+ * @summary Get the public Vhaya account deletion request page
  */
 export const getAccountDeletionPage = async ( options?: Parameters<typeof customFetch>[1]): Promise<string> => {
 
@@ -421,7 +421,7 @@ export type GetAccountDeletionPageQueryResult = NonNullable<Awaited<ReturnType<t
 export type GetAccountDeletionPageQueryError = ErrorType<unknown>
 
 
-/** @summary Get the public Wayfare account deletion request page */
+/** @summary Get the public Vhaya account deletion request page */
 export function useGetAccountDeletionPage<TData = Awaited<ReturnType<typeof getAccountDeletionPage>>, TError = ErrorType<unknown>>(
   options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAccountDeletionPage>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
 
@@ -1331,7 +1331,7 @@ export const getUpdateAdminPersonRoleUrl = (userId: string,) => {
 }
 
 /**
- * @summary Update a person's server-managed Wayfare role
+ * @summary Update a person's server-managed Vhaya role
  */
 export const updateAdminPersonRole = async (userId: string,
     updateAdminPersonRoleRequest: UpdateAdminPersonRoleRequest, options?: Parameters<typeof customFetch>[1]): Promise<UpdateAdminPersonRole200> => {
@@ -1397,7 +1397,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
     export type UpdateAdminPersonRoleMutationError = ErrorType<void>
     export type UpdateAdminPersonRoleMutationVariables = {userId: string;data: BodyType<UpdateAdminPersonRoleRequest>}
 
-    /** @summary Update a person's server-managed Wayfare role */
+    /** @summary Update a person's server-managed Vhaya role */
 export const useUpdateAdminPersonRole = <TError = ErrorType<void>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateAdminPersonRole>>, TError,UpdateAdminPersonRoleMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
  ): UseMutationResult<

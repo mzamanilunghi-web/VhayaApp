@@ -1,10 +1,10 @@
-# Wayfare
+# Vhaya
 
 A ride-service backend with Firebase identity, PostgreSQL operations data, ride management, route estimates, and trip tracking APIs.
 
 ## Run & Operate
 
-- `pnpm --filter @workspace/api-server run dev` — run the shared API used by Wayfare on the configured port
+- `pnpm --filter @workspace/api-server run dev` — run the shared API used by Vhaya on the configured port
 - `pnpm run typecheck` — typecheck the workspace
 - The workspace-root `.env` is loaded by the API development server.
 - Android and backend source are kept in separate folders and are not launched or built together.
@@ -23,14 +23,14 @@ A ride-service backend with Firebase identity, PostgreSQL operations data, ride 
 
 ## Architecture decisions
 
-- Firebase Authentication is the app's only sign-in provider. The API verifies Firebase ID tokens and verified emails, uses Firebase UIDs as Wayfare account IDs, and reads trusted roles from Firestore profiles.
+- Firebase Authentication is the app's only sign-in provider. The API verifies Firebase ID tokens and verified emails, uses Firebase UIDs as Vhaya account IDs, and reads trusted roles from Firestore profiles.
 - Each Firebase account is limited to one active device session. Signing in on another device replaces the previous session; the earlier device is signed out when it next checks with the API.
 - PostgreSQL remains authoritative for rides, payments, wallets, and operational records; `wayfare_users` is a server-maintained projection of Firebase identity. Existing account and ride records are preserved and are not automatically linked by matching email.
 - The API authorizes rider, driver, and operations-admin actions from server-managed Firestore roles; clients never choose or grant a role. Bootstrap the first operations admin with the server-only `WAYFARE_INITIAL_ADMIN_EMAILS` allowlist, then use protected admin provisioning. The last admin cannot remove their own or another administrator's access.
-- Backend admin endpoints support driver-application review, document-compliance checks, account provisioning, internal support cases, and external payout reconciliation. Staff review pending driver applications and record checks for documents received outside Wayfare, such as by email; no document upload is required or available. Application approval remains a separate staff decision after the required checks are complete.
+- Backend admin endpoints support driver-application review, document-compliance checks, account provisioning, internal support cases, and external payout reconciliation. Staff review pending driver applications and record checks for documents received outside Vhaya, such as by email; no document upload is required or available. Application approval remains a separate staff decision after the required checks are complete.
 - Trusted contacts and reservation reminders remain device-specific. Riders can open a user-confirmed share sheet with a trip snapshot; live contact tracking and emergency dispatch are not connected. Third-party identity checks are not connected.
 - The R20/km route estimate and rider-entered offers are draft values, not market-calibrated prices. Cancellation fees are disabled until local rules are approved.
-- Keep OpenStreetMap as Wayfare's map base; do not reintroduce Google Maps. The current stack uses OSM tiles, Nominatim search/reverse geocoding, and OSRM routing; keep providers replaceable. OSM Foundation's public tiles and Nominatim have usage limits and best-effort availability, so assess a scalable OSM-derived service or self-hosting before public launch.
+- Keep OpenStreetMap as Vhaya's map base; do not reintroduce Google Maps. The current stack uses OSM tiles, Nominatim search/reverse geocoding, and OSRM routing; keep providers replaceable. OSM Foundation's public tiles and Nominatim have usage limits and best-effort availability, so assess a scalable OSM-derived service or self-hosting before public launch.
 - Pickup and destination search use OpenStreetMap Nominatim; route previews use OSRM. The API requires arrival confirmation and a one-use pickup PIN before a trip can start. Driver location is shared with the rider only during an active assigned trip through an authenticated API; updates are foreground-only and the rider polls every five seconds. This backend provides route guidance data, not turn-by-turn navigation or live contact tracking.
 - Paystack checkout requires a verified account email. Development defaults to mock payment outcomes; driver settlements and refunds are not connected.
 
@@ -48,7 +48,8 @@ The Android companion also has a tested Rural Return Ride feature: it matches re
 
 ## User preferences
 
-Use an original Wayfare identity and combine familiar ride-hailing patterns without copying another app's branding or exact screens.
+Use an original Vhaya identity and combine familiar ride-hailing patterns without copying another app's branding or exact screens.
+Use “Vhaya” in user-facing labels and descriptions. Keep legacy Wayfare-prefixed package IDs, API headers, database identifiers, and environment-variable names unchanged until an explicit migration plan, because installed clients, stored data, and deployment configuration depend on them.
 
 ## Gotchas
 

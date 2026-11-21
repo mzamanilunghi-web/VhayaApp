@@ -1,4 +1,4 @@
-// Wayfare maps provider abstraction.
+// Vhaya maps provider abstraction.
 //
 // Workstream 1 (Maps and location), Phase 1 (platform foundations):
 //   "Create one provider abstraction for places, geocoding, routing, tiles,

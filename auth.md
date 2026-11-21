@@ -1,8 +1,8 @@
-# Wayfare authentication and data plan
+# Vhaya authentication and data plan
 
 ## Current direction
 
-- Firebase Authentication is Wayfare's only sign-in provider. Require a verified email before an account can use the API.
+- Firebase Authentication is Vhaya's only sign-in provider. Require a verified email before an account can use the API.
 - Firestore is the authoritative store for Firebase user profiles and access roles (`rider`, `driver`, and `admin`).
 - Replit PostgreSQL remains authoritative for rides, payments, wallets, support cases, driver operations, and other relational application data.
 - PostgreSQL's `wayfare_users` rows remain a server-maintained identity projection for operational foreign keys and SQL joins. Firebase/Firestore are authoritative for Firebase identity fields and roles.

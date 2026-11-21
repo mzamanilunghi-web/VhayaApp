@@ -432,7 +432,7 @@ export function VisualOverview() {
       <div className="wf-shell">
         <aside className="wf-sidebar">
           <div className="wf-brand">
-            <img src="/__mockup/images/wayfare-logo.png" alt="Wayfare" />
+            <img src="/__mockup/images/vhaya-logo.svg" alt="Vhaya" />
           </div>
           <div className="wf-nav-label">Operations</div>
           <nav aria-label="Admin sections" className="wf-nav">
@@ -467,7 +467,7 @@ export function VisualOverview() {
               <div>
                 <div className="wf-kicker"><Activity size={12} /> OPERATIONS SNAPSHOT <span>· DESIGN PREVIEW</span></div>
                 <h1>Ride overview<span>.</span></h1>
-                <p>Requests, readiness and completed fares across Wayfare.</p>
+                <p>Requests, readiness and completed fares across Vhaya.</p>
               </div>
               <div className="wf-snapshot-date"><span>Sample snapshot</span><strong>Preview week · 7 days</strong></div>
             </div>
@@ -538,7 +538,7 @@ export function VisualOverview() {
             </section>
 
             <footer className="wf-footer">
-              <span>Wayfare Operations <i>·</i> South Africa</span>
+              <span>Vhaya Operations <i>·</i> South Africa</span>
               <span><ShieldCheck size={12} /> All displayed values are synthetic design-preview data</span>
               <span>Snapshot · 103 ride requests <ArrowUpRight size={12} /></span>
             </footer>

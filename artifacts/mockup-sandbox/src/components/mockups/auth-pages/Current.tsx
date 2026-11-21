@@ -29,7 +29,7 @@ export function Current() {
       setMode("verify");
       setMessage(`A verification code was sent to ${email || "your email"}.`);
     } else {
-      setMessage("This is a visual preview of the current Wayfare sign-in.");
+      setMessage("This is a visual preview of the current Vhaya sign-in.");
     }
   }
 
@@ -50,14 +50,14 @@ export function Current() {
             <Navigation aria-hidden="true" size={18} strokeWidth={2.2} />
           </span>
           <span className="auth-current-brand-copy">
-            <strong>wayfare</strong>
+            <strong>Vhaya</strong>
             <span>POLOKWANE · SOUTH AFRICA</span>
           </span>
         </header>
 
         <span className="auth-current-status">
           <i />
-          {isVerification ? "EMAIL CONFIRMATION" : isSignIn ? "SECURE SIGN-IN" : "RIDE WITH WAYFARE"}
+          {isVerification ? "EMAIL CONFIRMATION" : isSignIn ? "SECURE SIGN-IN" : "RIDE WITH VHAYA"}
         </span>
         <h1 className="auth-current-title" id="current-auth-title">
           {isVerification ? "Verify your email" : isSignIn ? "Welcome back" : "Create your account"}
@@ -66,7 +66,7 @@ export function Current() {
           {isVerification
             ? `Enter the code sent to ${email || "your email address"}.`
             : isSignIn
-              ? "Sign in to request rides and manage your Wayfare account."
+              ? "Sign in to request rides and manage your Vhaya account."
               : "Create a secure account to request rides and keep your trip history."}
         </p>
 
@@ -141,7 +141,7 @@ export function Current() {
             </>
           ) : (
             <div className="auth-current-switch">
-              <span>{isSignIn ? "New to Wayfare?" : "Already have an account?"}</span>
+              <span>{isSignIn ? "New to Vhaya?" : "Already have an account?"}</span>
               <button onClick={() => switchMode(isSignIn ? "sign-up" : "sign-in")} type="button">
                 {isSignIn ? "Create an account" : "Sign in"}
               </button>

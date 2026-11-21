@@ -3,8 +3,8 @@ export const accountDeletionPage = `<!doctype html>
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <meta name="description" content="Request deletion of your Wayfare rider or driver account and personal profile data.">
-    <title>Delete your Wayfare account</title>
+    <meta name="description" content="Request deletion of your Vhaya rider or driver account and personal profile data.">
+    <title>Delete your Vhaya account</title>
     <style>
       :root { color-scheme: light; font-family: Inter, ui-sans-serif, system-ui, sans-serif; color: #183438; background: #eef4ef; }
       * { box-sizing: border-box; }
@@ -32,13 +32,13 @@ export const accountDeletionPage = `<!doctype html>
   </head>
   <body>
     <main>
-      <div class="brand"><span class="mark" aria-hidden="true">W</span><span>Wayfare</span></div>
+      <div class="brand"><span class="mark" aria-hidden="true">V</span><span>Vhaya</span></div>
       <p class="eyebrow">Privacy controls</p>
       <h1>Request account deletion</h1>
-      <p class="intro">Use this page to request deletion of your Wayfare rider or driver account if you no longer have the app installed. We review account ownership before processing a web request.</p>
+      <p class="intro">Use this page to request deletion of your Vhaya rider or driver account if you no longer have the app installed. We review account ownership before processing a web request.</p>
       <div class="note"><strong>What is removed:</strong> your sign-in account, profile, driver application details and stored documents, device tokens, and personal messages. <strong>What may remain:</strong> ride, payment, safety, dispute, and audit records may be kept in pseudonymized form for reconciliation, safety, or legal requirements.</div>
       <form id="request-form">
-        <label for="email">Email used for your Wayfare account</label>
+        <label for="email">Email used for your Vhaya account</label>
         <input id="email" name="email" type="email" autocomplete="email" maxlength="254" required>
         <button id="submit" type="submit">Submit deletion request</button>
       </form>

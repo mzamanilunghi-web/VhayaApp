@@ -60,7 +60,7 @@ export function RouteBoard() {
           <div className="wb-brand">
             <div className="wb-mark"><Icon name="route" size={21} /></div>
             <div>
-              <div className="wb-wordmark">wayfare</div>
+              <div className="wb-wordmark">Vhaya</div>
               <div className="wb-tagline">CITY RIDES, YOUR WAY</div>
             </div>
           </div>
@@ -173,7 +173,7 @@ export function RouteBoard() {
         ) : (
           <>
             <section className="wb-intro">
-              <div className="wb-greeting">YOUR WAYFARE</div>
+              <div className="wb-greeting">YOUR VHAYA</div>
               <h1>Your trips.</h1>
               <p>Ride details, all in one place.</p>
             </section>

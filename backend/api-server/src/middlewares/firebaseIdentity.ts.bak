@@ -52,7 +52,7 @@ export const attachFirebaseIdentity: RequestHandler = (req, res, next) => {
     }
 
     if (decoded.email_verified !== true || !decoded.email) {
-      res.status(403).json({ error: "Verify your email before using Wayfare." });
+      res.status(403).json({ error: "Verify your email before using Vhaya." });
       return;
     }
 
@@ -67,7 +67,7 @@ export const attachFirebaseIdentity: RequestHandler = (req, res, next) => {
         if (existingRows[0]) {
           res.status(409).json({
             error:
-              "This account has existing Wayfare records and needs a reviewed identity link.",
+              "This account has existing Vhaya records and needs a reviewed identity link.",
           });
           return;
         }
@@ -77,7 +77,7 @@ export const attachFirebaseIdentity: RequestHandler = (req, res, next) => {
       const verifiedName =
         (typeof decoded.name === "string" ? decoded.name.trim() : "") ||
         verifiedEmail.split("@")[0] ||
-        "Wayfare rider";
+        "Vhaya rider";
       const profile =
         existingProfile &&
         existingProfile.email === verifiedEmail &&
@@ -127,7 +127,7 @@ export const attachFirebaseIdentity: RequestHandler = (req, res, next) => {
         "Firebase-authenticated API request failed",
       );
       res.status(503).json({
-        error: "Wayfare identity data could not be loaded. Try again shortly.",
+        error: "Vhaya identity data could not be loaded. Try again shortly.",
       });
     }
   })();

@@ -21,7 +21,7 @@ export function StagedRideFlow() {
 
   return <main className="wf-prototype"><section className="wf-device">
     <StatusBar />
-    <header className="wf-brandbar"><div className="wf-wordmark">wayfare<b>.</b></div><button className="wf-icon-button" aria-label="Close prototype" onClick={reset}>×</button></header>
+    <header className="wf-brandbar"><div className="wf-wordmark">Vhaya<b>.</b></div><button className="wf-icon-button" aria-label="Close prototype" onClick={reset}>×</button></header>
     <div className="wf-stepper" aria-label={`Step ${stageIndex + 1} of 4`}>{labels.map((item, i) => <i key={item} className={i <= stageIndex ? "active" : ""} />)}</div>
     {stage === "matching" && <section className="wf-screen" key={stage}>
       <div className="wf-kicker">RIDE REQUEST SENT</div>
@@ -45,7 +45,7 @@ export function StagedRideFlow() {
       <h1>Your ride is confirmed.</h1>
       <p>Lerato has accepted your request and is heading to your pickup.</p>
       <div className="wf-card wf-driver-card">
-        <div className="wf-avatar">LM</div><div><div className="wf-driver-name">Lerato Mokoena <span style={{ color: "#607861" }}>· verified</span></div><div className="wf-meta">4.9 rating · 218 Wayfare rides</div><div className="wf-meta">Silver Toyota Corolla · CA 482-917</div></div><i className="wf-car-thumb" aria-label="Silver sedan illustration" />
+        <div className="wf-avatar">LM</div><div><div className="wf-driver-name">Lerato Mokoena <span style={{ color: "#607861" }}>· verified</span></div><div className="wf-meta">4.9 rating · 218 Vhaya rides</div><div className="wf-meta">Silver Toyota Corolla · CA 482-917</div></div><i className="wf-car-thumb" aria-label="Silver sedan illustration" />
       </div>
       <div className="wf-card" style={{ marginTop: 11 }}>
         <div className="wf-route-item"><label>PICKUP</label><strong>The Garden, 11 Hope Street, Gardens</strong></div>

@@ -104,7 +104,7 @@ paths:
     get:
       operationId: getAccountDeletionPage
       tags: [account-deletion]
-      summary: Get the public Wayfare account deletion request page
+      summary: Get the public Vhaya account deletion request page
       security: []
       responses:
         "200":
@@ -439,7 +439,7 @@ paths:
     patch:
       operationId: updateAdminPersonRole
       tags: [admin]
-      summary: Update a person's server-managed Wayfare role
+      summary: Update a person's server-managed Vhaya role
       security:
         - firebaseBearer: []
       parameters:

@@ -1,4 +1,4 @@
-# Wayfare driver dashboard — product review
+# Vhaya driver dashboard — product review
 
 **Reviewed:** 24 October 2026  
 **Market focus:** Polokwane, South Africa  
@@ -17,9 +17,9 @@ Both Uber and Lyft organize the working ride around a small number of explicit s
 
 Uber's driver app guide also separates Home, Earnings, Inbox, and Menu, so the active ride remains the primary task while secondary account and earnings tools are still discoverable.
 
-## Wayfare baseline and design decision
+## Vhaya baseline and design decision
 
-Wayfare already has server-backed ride states, driver request acceptance, foreground location, GPS-checked arrival within 150 metres, a six-digit pickup PIN, destination route guidance, and trip completion. The earlier driver screen exposed some of this inline and made stage changes feel like generic buttons.
+Vhaya already has server-backed ride states, driver request acceptance, foreground location, GPS-checked arrival within 150 metres, a six-digit pickup PIN, destination route guidance, and trip completion. The earlier driver screen exposed some of this inline and made stage changes feel like generic buttons.
 
 The dashboard now makes the three operational stages visible—**To pickup → At pickup → On trip**—and opens a stage-specific dialog before each transition. The dialog shows the relevant pickup or destination, preserves the existing GPS and PIN checks, and keeps action errors visible without dismissing the dialog. Completion on the dedicated drive screen also requires confirmation.
 
@@ -39,4 +39,4 @@ The interface should continue to label these limits honestly. Before a public la
 - [Uber — Information about taking trips](https://www.uber.com/pl/en/drive/basics/how-to-take-trips/) — upfront request context, starting a trip, and completing it.
 - [Lyft Help — How to navigate a ride](https://help.lyft.com/hc/en-ca/all/articles/115012926147-How-to-navigate-a-ride) — request notification, arrival, pickup, navigation, drop-off, and PIN examples.
 
-Competitor guides describe their own products and may vary by market. They are workflow references, not commitments about availability in South Africa or requirements for Wayfare.
+Competitor guides describe their own products and may vary by market. They are workflow references, not commitments about availability in South Africa or requirements for Vhaya.

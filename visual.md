@@ -1,8 +1,8 @@
-# Wayfare visual direction
+# Vhaya visual direction
 
 ## Direction
 
-Combine Linux’s practical clarity, readable hierarchy, and direct controls with Apple’s calm spacing, careful surfaces, and quiet depth. Keep the result recognizably Wayfare: local, dependable, and warm. Do not copy either platform’s logos or branded interface elements.
+Combine Linux’s practical clarity, readable hierarchy, and direct controls with Apple’s calm spacing, careful surfaces, and quiet depth. Keep the result recognizably Vhaya: local, dependable, and warm. Do not copy either platform’s logos or branded interface elements.
 
 ## Color palette
 
@@ -11,7 +11,7 @@ Combine Linux’s practical clarity, readable hierarchy, and direct controls wit
 | App background | `#F4F5EF` | `#151A17` |
 | Main text | `#26342F` | `#E9EFE9` |
 | Elevated surface | `#FFFEFA` | `#202823` |
-| Wayfare action coral | `#DF704C` | `#EF8C66` |
+| Vhaya action coral | `#DF704C` | `#EF8C66` |
 | Soft sage surface | `#E8EEE4` | `#2D3C31` |
 | Supporting text | `#738078` | `#A4B1A7` |
 | Dividers | `#DCE3DA` | `#39473F` |

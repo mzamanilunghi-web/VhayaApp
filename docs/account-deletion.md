@@ -1,10 +1,10 @@
-# Wayfare account deletion
+# Vhaya account deletion
 
 This backend provides the account-deletion API and public request page for rider and driver accounts. The Android app is maintained in a separate project and must connect its account-settings screen to this API.
 
 ## Android API contract
 
-Use the authenticated Wayfare API base URL and the same Firebase bearer token and session header as other signed-in requests.
+Use the authenticated Vhaya API base URL and the same Firebase bearer token and session header as other signed-in requests.
 
 ```http
 DELETE /api/account
@@ -40,7 +40,7 @@ If Firebase Auth or Firestore cleanup fails after the profile has been scrubbed,
 
 ## Data handling
 
-Deletion removes Firebase Authentication and Firestore profile data; the Wayfare profile and driver application/compliance records and their app-stored document files; active sessions and push tokens; authored message text and app-stored message attachments; and rider pickup, destination, coordinates, and route data. Message attachment references hosted outside Wayfare are removed from Wayfare, but the external host controls whether the referenced file itself is deleted.
+Deletion removes Firebase Authentication and Firestore profile data; the Vhaya profile and driver application/compliance records and their app-stored document files; active sessions and push tokens; authored message text and app-stored message attachments; and rider pickup, destination, coordinates, and route data. Message attachment references hosted outside Vhaya are removed from Vhaya, but the external host controls whether the referenced file itself is deleted.
 
 Some operational records are retained in pseudonymized form for payment and payout reconciliation, safety incidents, disputes, and audit requirements. Examples include ride/payment totals, safety/dispute records, and audit history. The public page discloses these retention categories. The product owner must set and publish the applicable retention periods and legal grounds in the privacy policy; this implementation does not decide those periods.
 

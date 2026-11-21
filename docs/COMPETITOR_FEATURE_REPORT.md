@@ -1,14 +1,14 @@
 # Competitor Feature Report — Ride-Hailing Support, Safety & Post-Trip
 
 **Date:** 2026-10-21
-**Scope:** Compare Wayfare-Mobile against Uber, Bolt, Lyft, inDrive (and industry best practices) for post-trip issue reporting, in-trip safety, and support operations.
+**Scope:** Compare Vhaya against Uber, Bolt, Lyft, inDrive (and industry best practices) for post-trip issue reporting, in-trip safety, and support operations.
 **Sources:** Uber Help/Rider Safety, Lyft Help ride-history, Bolt Kenya support guide, TechCabal complaint-handling analysis, UberApps incident-reporting best practices.
 
 ## 1. Executive summary
 
-Wayfare already has a solid foundation: riders can report issues on completed/cancelled/unfulfilled trips (category, priority, message), riders have a Support view showing reported text/priority/status + staff replies, and admins have a queue with assignment, status, staff notes, and replies. Support cases are also created when either party sends a channel:support trip message.
+Vhaya already has a solid foundation: riders can report issues on completed/cancelled/unfulfilled trips (category, priority, message), riders have a Support view showing reported text/priority/status + staff replies, and admins have a queue with assignment, status, staff notes, and replies. Support cases are also created when either party sends a channel:support trip message.
 
-Gaps vs. competitors are concentrated in in-trip safety (emergency button, trip sharing, trusted contacts, audio recording), lost and found + fare review/refund flows, evidence attachments, SLA/audit and analytics, and driver-facing support. Addressing the P0/P1 items below would bring Wayfare to parity and exceed competitors on transparency (status + replies already surfaced to riders).
+Gaps vs. competitors are concentrated in in-trip safety (emergency button, trip sharing, trusted contacts, audio recording), lost and found + fare review/refund flows, evidence attachments, SLA/audit and analytics, and driver-facing support. Addressing the P0/P1 items below would bring Vhaya to parity and exceed competitors on transparency (status + replies already surfaced to riders).
 
 ## 2. What competitors offer
 
@@ -39,7 +39,7 @@ Gaps vs. competitors are concentrated in in-trip safety (emergency button, trip 
 
 ### inDrive (negative example)
 - Complaints answered with generic we will look into it; chat auto-closes if user idle -> poor UX. Lesson: keep threads open, set SLAs, follow up.
-## 3. Wayfare current state (baseline)
+## 3. Vhaya current state (baseline)
 
 Already implemented:
 - Rider Report an issue on completed/cancelled/unfulfilled trips (category, priority, message).
@@ -49,7 +49,7 @@ Already implemented:
 - Admin operations snapshot: live account, ride, driver-review, payment, and support totals; 30-day support intake by category and priority.
 - Admin activity feed: account/driver review, role, payout, refund, ride-cancellation, and support-case actions from recorded staff events.
 - Support cases created from trip chat (channel: support).
-- Typecheck clean (api-server + wayfare).
+- Typecheck clean (API server + Android app).
 
 Not present:
 - In-trip emergency button / 911 (or local emergency) dial with trip details.
@@ -116,7 +116,7 @@ Not present:
 ## 7. UX principles (learned from competitors failures)
 
 - Never auto-close a conversation on idle; send reminders and keep thread open (inDrive anti-pattern).
-- Always show status + last update to the reporter (Wayfare already does this - keep).
+- Always show status + last update to the reporter (Vhaya already does this - keep).
 - Link complaint to trip data automatically (Bolt pattern).
 - Provide fallback channels (email/portal) when app unavailable.
 - Confirm receipt of report with ETA for response.

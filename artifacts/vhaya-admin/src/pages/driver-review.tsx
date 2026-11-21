@@ -99,10 +99,10 @@ function errorMessage(error: unknown): string {
 
 function Brand() {
   return (
-    <div className="review-brand" aria-label="Wayfare staff">
-      <div className="review-brand-mark">W</div>
+    <div className="review-brand" aria-label="Vhaya staff">
+      <div className="review-brand-mark">V</div>
       <div>
-        <div className="review-brand-name">wayfare</div>
+        <div className="review-brand-name">Vhaya</div>
         <div className="review-brand-subtitle">staff desk</div>
       </div>
     </div>
@@ -186,7 +186,7 @@ function AuthSurface() {
           <>
             <h1>Verify your email</h1>
             <p className="auth-description">
-              Wayfare staff access is available only to verified accounts. We sent a link to{" "}
+              Vhaya staff access is available only to verified accounts. We sent a link to{" "}
               <strong>{auth.user?.email ?? "your email address"}</strong>.
             </p>
             {notice && <div className="notice success">{notice}</div>}
@@ -208,7 +208,7 @@ function AuthSurface() {
             <div className="auth-symbol denied"><ShieldCheck size={20} /></div>
             <h1>Staff access required</h1>
             <p className="auth-description">
-              This verified account is not provisioned for the Wayfare staff desk. Access is managed by an administrator.
+              This verified account is not provisioned for the Vhaya staff desk. Access is managed by an administrator.
             </p>
             <div className="notice error" role="status">{auth.error}</div>
             <button className="desk-button plain full" onClick={() => void auth.signOut()} data-testid="button-auth-signout">
@@ -234,7 +234,7 @@ function AuthSurface() {
           <>
             <div className="auth-symbol"><ShieldCheck size={20} /></div>
             <h1>Sign in to review</h1>
-            <p className="auth-description">Use your verified Wayfare staff account to open the driver application queue.</p>
+            <p className="auth-description">Use your verified Vhaya staff account to open the driver application queue.</p>
             {(formError || auth.error) && <div className="notice error" role="alert">{formError || auth.error}</div>}
             {!auth.configurationReady && (
               <div className="notice error" role="alert">Firebase web configuration is not available. Contact your app administrator.</div>
@@ -350,7 +350,7 @@ function ReviewDesk() {
         <div>
           <div className="desk-eyebrow">REVIEW DESK <span>·</span> DRIVER ONBOARDING</div>
           <h1>Application queue</h1>
-          <p>Review documents received outside Wayfare, then record each check and decision here.</p>
+          <p>Review documents received outside Vhaya, then record each check and decision here.</p>
         </div>
         <button className="desk-button plain refresh-button" onClick={() => void applicationsQuery.refetch()} disabled={applicationsQuery.isFetching} data-testid="button-refresh-applications">
           <RefreshCw size={14} className={applicationsQuery.isFetching ? "spin-once" : ""} /> {applicationsQuery.isFetching ? "Refreshing" : "Refresh"}

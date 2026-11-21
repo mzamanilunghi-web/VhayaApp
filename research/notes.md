@@ -1,13 +1,13 @@
-# Research Notes: Wayfare Polokwane Launch Readiness
+# Research Notes: Vhaya Polokwane Launch Readiness
 
 **Status:** researching
 **Depth:** Standard
 
 ## Plan
 
-- **Question:** What must Wayfare confirm for a safe, viable Polokwane launch, and which providers and initial features best fit the South African market?
+- **Question:** What must Vhaya confirm for a safe, viable Polokwane launch, and which providers and initial features best fit the South African market?
 - **Scope:** South African e-hailing rules, Limpopo/Polokwane and airport requirements, local mapping/routing and payment options, and the first market-appropriate feature set. No legal advice, provider connection, or final fare setting without local confirmation.
-- **Audience:** Wayfare product owner
+- **Audience:** Vhaya product owner
 - **Deliverable:** A sourced recommendation report, a list of choices that need owner approval, and a clear record of which checklist items remain open.
 - **As of:** 18 October 2026
 
@@ -30,7 +30,7 @@
 - [ ] Recommend whether to launch with Standard, Comfort, and XL together or phase categories based on supply and operations.
 - [ ] Recommend a fare method and identify the local operating-cost inputs needed before setting ZAR amounts.
 - [ ] Select a defensible core feature set and defer optional services until the launch operation is ready.
-- [ ] List decisions requiring Wayfare owner approval and legal/provider confirmation; do not mark unverified decisions complete.
+- [ ] List decisions requiring Vhaya owner approval and legal/provider confirmation; do not mark unverified decisions complete.
 
 ## Findings Log
 

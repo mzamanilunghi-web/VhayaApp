@@ -231,7 +231,7 @@ export function AdminConsole() {
         <aside className="hidden w-[232px] shrink-0 flex-col bg-[#26362e] px-5 py-6 text-[#f6f3e9] lg:flex">
           <div className="mb-10 flex items-center gap-3 px-1">
             <div className="rounded-xl bg-[#f5f3ec] px-2.5 py-1.5">
-              <img src="/__mockup/images/wayfare-logo.png" alt="Wayfare" className="h-8 w-[138px] object-contain object-left" />
+              <img src="/__mockup/images/vhaya-logo.svg" alt="Vhaya" className="h-8 w-[138px] object-contain object-left" />
             </div>
           </div>
           <div className="mb-3 px-3 text-[9px] font-bold uppercase tracking-[.2em] text-[#9caa9f]">Operations desk</div>
@@ -256,7 +256,7 @@ export function AdminConsole() {
             <div className="mx-auto flex h-[70px] max-w-[1560px] items-center justify-between px-4 sm:px-7 xl:px-10">
               <div className="flex items-center gap-3">
                 <button className="rounded-lg p-2 text-[#667168] hover:bg-[#ebeae2] lg:hidden" onClick={() => setActiveSection(activeSection === "Requests" ? "People" : "Requests")} aria-label="Switch section"><Menu size={19} /></button>
-                <div className="lg:hidden"><img src="/__mockup/images/wayfare-logo.png" alt="Wayfare" className="h-7 w-24 object-contain object-left" /></div>
+                <div className="lg:hidden"><img src="/__mockup/images/vhaya-logo.svg" alt="Vhaya" className="h-7 w-24 object-contain object-left" /></div>
                 <div className="hidden lg:block">
                    <div className="text-[10px] font-semibold uppercase tracking-[.18em] text-[#81887f]">Tuesday, 20 October 2026 <span className="mx-1.5 text-[#c1c3b9]">/</span> Johannesburg</div>
                   <div className="mt-0.5 text-[13px] font-semibold text-[#303a32]">Morning operations</div>
@@ -429,7 +429,7 @@ export function AdminConsole() {
                           );
                         })}
                       </div>
-                      <div className="flex gap-2 border-t border-[#efede5] bg-[#f7f6f0] px-3.5 py-3 text-[9px] leading-4 text-[#737c72]"><ShieldCheck size={13} className="mt-0.5 shrink-0 text-[#66806a]" /><span>Verification is represented for design only. Driver document checks currently happen outside Wayfare.</span></div>
+                      <div className="flex gap-2 border-t border-[#efede5] bg-[#f7f6f0] px-3.5 py-3 text-[9px] leading-4 text-[#737c72]"><ShieldCheck size={13} className="mt-0.5 shrink-0 text-[#66806a]" /><span>Verification is represented for design only. Driver document checks currently happen outside Vhaya.</span></div>
                     </div>
 
                     {selectedPersonRide && (
@@ -492,7 +492,7 @@ export function AdminConsole() {
                 )}
               </section>
             </div>
-            <footer className="mt-5 flex flex-col gap-1 border-t border-[#e2e0d6] pt-4 text-[9px] text-[#90948b] sm:flex-row sm:items-center sm:justify-between"><span>Wayfare Operations · Johannesburg, South Africa</span><span>All names, rides and figures shown are demo data. Actions are simulated locally.</span></footer>
+            <footer className="mt-5 flex flex-col gap-1 border-t border-[#e2e0d6] pt-4 text-[9px] text-[#90948b] sm:flex-row sm:items-center sm:justify-between"><span>Vhaya Operations · Johannesburg, South Africa</span><span>All names, rides and figures shown are demo data. Actions are simulated locally.</span></footer>
           </div>
         </main>
       </div>

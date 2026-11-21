@@ -53,7 +53,7 @@ router.post("/account-deletion/requests", async (req, res, next): Promise<void> 
       : req.body;
   const parsed = SubmitAccountDeletionRequestBody.safeParse(body);
   if (!parsed.success) {
-    res.status(400).json({ error: "Enter the email used for your Wayfare account." });
+    res.status(400).json({ error: "Enter the email used for your Vhaya account." });
     return;
   }
 

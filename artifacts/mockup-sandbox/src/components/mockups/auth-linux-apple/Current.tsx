@@ -23,7 +23,7 @@ export function Current() {
     setNotice(
       mode === "reset-password"
         ? "Password reset is part of the secure sign-in flow."
-        : "This is a visual preview of the current Wayfare sign-in.",
+        : "This is a visual preview of the current Vhaya sign-in.",
     );
   }
 
@@ -42,7 +42,7 @@ export function Current() {
             <Navigation aria-hidden="true" size={19} strokeWidth={2.2} />
           </span>
           <span>
-            <strong>Wayfare</strong>
+            <strong>Vhaya</strong>
             <small>Made for the way there</small>
           </span>
         </header>
@@ -50,14 +50,14 @@ export function Current() {
         <section aria-labelledby="current-auth-title" className="auth-current-card">
           <span className="auth-current-status">
             <i aria-hidden="true" />
-            WAYFARE ACCOUNT
+            VHAYA ACCOUNT
           </span>
           <h1 id="current-auth-title">{title}</h1>
           <p className="auth-current-description">
             {mode === "sign-in"
               ? "Sign in securely to request rides and manage your trips."
               : mode === "create-account"
-                ? "Create a Wayfare account to get started."
+                ? "Create a Vhaya account to get started."
                 : "Enter your email and we’ll send reset instructions if an account exists."}
           </p>
 
@@ -129,7 +129,7 @@ export function Current() {
                 Forgot password?
               </button>
               <div className="auth-current-switch">
-                <span>New to Wayfare?</span>
+                <span>New to Vhaya?</span>
                 <button onClick={() => changeMode("create-account")} type="button">
                   Create an account
                 </button>

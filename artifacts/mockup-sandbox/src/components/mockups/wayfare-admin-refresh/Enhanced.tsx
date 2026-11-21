@@ -191,7 +191,7 @@ export function Enhanced() {
                 <Activity size={19} strokeWidth={2.2} />
               </span>
               <div>
-                <div className="text-[18px] font-bold tracking-[-.06em]">wayfare</div>
+                <div className="text-[18px] font-bold tracking-[-.06em]">Vhaya</div>
                 <div className="-mt-0.5 text-[9px] font-semibold uppercase tracking-[.16em] text-[#879189]">Operations</div>
               </div>
             </div>
@@ -221,7 +221,7 @@ export function Enhanced() {
           <header className="sticky top-0 z-10 flex h-[61px] items-center justify-between border-b border-[#dce3da] bg-[#fffefa]/95 px-4 backdrop-blur-md sm:px-7">
             <div className="flex min-w-0 items-center gap-3">
               <button aria-label="Open navigation" className="rounded-lg p-2 text-[#536158] hover:bg-[#f3f5ef] xl:hidden" onClick={() => setMobileNavOpen(true)}><Menu size={18} /></button>
-              <div className="truncate text-[11px] text-[#7c887e]"><span className="hidden sm:inline">Wayfare</span><span className="px-2 text-[#c2c9c0]">/</span>Operations<span className="px-2 text-[#c2c9c0]">/</span><span className="font-semibold text-[#34433a]">{section}</span></div>
+              <div className="truncate text-[11px] text-[#7c887e]"><span className="hidden sm:inline">Vhaya</span><span className="px-2 text-[#c2c9c0]">/</span>Operations<span className="px-2 text-[#c2c9c0]">/</span><span className="font-semibold text-[#34433a]">{section}</span></div>
             </div>
             <button onClick={() => flash("Signed in as Kea Maseko — sample workspace.")} className="flex items-center gap-2.5 rounded-xl border border-[#e0e5dc] bg-[#fffefa] py-1.5 pl-1.5 pr-2.5 text-[11px] font-semibold text-[#435047] transition hover:bg-[#f7f8f3]">
               <span className="flex h-7 w-7 items-center justify-center rounded-full bg-[#e5eee4] text-[9px] font-bold text-[#47624c]">KM</span>
@@ -234,7 +234,7 @@ export function Enhanced() {
               <div>
                 <div className="mb-1.5 flex items-center gap-2 text-[9px] font-bold uppercase tracking-[.17em] text-[#859087]"><span className="h-px w-5 bg-[#df704c]" /> Operations desk</div>
                 <h1 className="m-0 text-[30px] font-semibold leading-none tracking-[-.055em] text-[#26342f] sm:text-[34px]" style={{ fontFamily: 'Georgia, "Times New Roman", serif' }}>{section}.</h1>
-                <p className="mb-0 mt-2 text-[11px] text-[#758178]">{section === "Compliance" ? "A clear view of checks still needed before a safe staff decision." : section === "Driver reviews" ? "Review applications and move each one to its next safe action." : "Wayfare operations workspace · sample data"}</p>
+                <p className="mb-0 mt-2 text-[11px] text-[#758178]">{section === "Compliance" ? "A clear view of checks still needed before a safe staff decision." : section === "Driver reviews" ? "Review applications and move each one to its next safe action." : "Vhaya operations workspace · sample data"}</p>
               </div>
               <div className="flex items-center gap-2">
                 <span className="rounded-full border border-[#dce3da] bg-[#fffefa] px-3 py-1.5 text-[9px] font-semibold text-[#758178]"><span className="mr-1.5 inline-block h-1.5 w-1.5 rounded-full bg-[#78977c]" /> SAMPLE DATA</span>
@@ -244,7 +244,7 @@ export function Enhanced() {
 
             <div className="mb-5 flex items-start gap-3 rounded-[14px] border border-[#dfe7dc] bg-[#e8eee4] px-4 py-3.5 text-[10px] leading-[1.65] text-[#435349]">
               <ShieldCheck className="mt-0.5 shrink-0 text-[#5b7a61]" size={16} />
-              <p className="m-0"><strong className="font-semibold text-[#35483a]">Safety comes before approval.</strong> Never approve a driver until identity, vehicle and applicable permit checks are completed independently. Wayfare does not store document images; inspect originals through your approved staff process.</p>
+              <p className="m-0"><strong className="font-semibold text-[#35483a]">Safety comes before approval.</strong> Never approve a driver until identity, vehicle and applicable permit checks are completed independently. Vhaya does not store document images; inspect originals through your approved staff process.</p>
             </div>
 
             {section === "Compliance" || section === "Driver reviews" ? (
@@ -395,7 +395,7 @@ export function Enhanced() {
               <section className="rounded-[18px] border border-[#dce3da] bg-[#fffefa] p-5 sm:p-7">
                 <div className="flex items-start gap-3">
                   <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#e8eee4] text-[#55765d]"><BadgeCheck size={18} /></span>
-                  <div><h2 className="m-0 text-[15px] font-semibold">{section}</h2><p className="mb-0 mt-1 text-[10px] text-[#7c887f]">This area is represented in the Wayfare operations navigation.</p></div>
+                  <div><h2 className="m-0 text-[15px] font-semibold">{section}</h2><p className="mb-0 mt-1 text-[10px] text-[#7c887f]">This area is represented in the Vhaya operations navigation.</p></div>
                 </div>
                 <div className="mt-5 rounded-[13px] border border-dashed border-[#dce3da] bg-[#fafbf8] px-5 py-8 text-center">
                   <span className="mx-auto flex h-10 w-10 items-center justify-center rounded-full bg-[#eef2e9] text-[#738078]"><MoreHorizontal size={18} /></span>
@@ -407,7 +407,7 @@ export function Enhanced() {
             )}
 
             <footer className="mt-7 flex flex-wrap items-center justify-between gap-2 border-t border-[#dce3da] pt-3 text-[8px] text-[#8b958d]">
-              <span>Wayfare operations <span className="px-1">·</span> South Africa</span>
+              <span>Vhaya operations <span className="px-1">·</span> South Africa</span>
               <span>Sample review data <span className="px-1">·</span> No documents stored</span>
             </footer>
           </div>

@@ -101,7 +101,7 @@ export const DeleteOwnAccountResponse = zod.object({
 
 
 /**
- * @summary Get the public Wayfare account deletion request page
+ * @summary Get the public Vhaya account deletion request page
  */
 export const GetAccountDeletionPageResponse = zod.unknown()
 
@@ -412,7 +412,7 @@ export const GetAdminPersonResponse = zod.object({
 
 
 /**
- * @summary Update a person's server-managed Wayfare role
+ * @summary Update a person's server-managed Vhaya role
  */
 export const updateAdminPersonRolePathUserIdMax = 128;
 

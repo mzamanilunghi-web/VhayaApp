@@ -44,12 +44,12 @@ export function Enhanced() {
       <div aria-hidden="true" className="enhanced-preview-grain" />
       <div className="enhanced-preview-wrap">
         <header className="enhanced-preview-header">
-          <a aria-label="Wayfare home" className="enhanced-preview-brand" href="#wayfare">
+          <a aria-label="Vhaya home" className="enhanced-preview-brand" href="#vhaya">
             <span className="enhanced-preview-mark">
               <Navigation aria-hidden="true" size={19} strokeWidth={2.2} />
             </span>
             <span className="enhanced-preview-brand-copy">
-              <strong>wayfare</strong>
+              <strong>Vhaya</strong>
               <span>POLOKWANE · SOUTH AFRICA</span>
             </span>
           </a>
@@ -94,12 +94,12 @@ export function Enhanced() {
 
           <section aria-labelledby="enhanced-form-title" className="enhanced-preview-card">
             <div className="enhanced-preview-card-top">
-              <span className="enhanced-preview-secure-tag"><i /> {isSignIn ? "SECURE SIGN-IN" : "RIDE WITH WAYFARE"}</span>
+              <span className="enhanced-preview-secure-tag"><i /> {isSignIn ? "SECURE SIGN-IN" : "RIDE WITH VHAYA"}</span>
               <span className="enhanced-preview-step">01 <b>/</b> 02</span>
             </div>
             <div className="enhanced-preview-heading">
               <h2 id="enhanced-form-title">{isSignIn ? "Welcome back" : "Create your account"}</h2>
-              <p>{isSignIn ? "Sign in to request rides and manage your Wayfare account." : "Your everyday rides, all in one place."}</p>
+              <p>{isSignIn ? "Sign in to request rides and manage your Vhaya account." : "Your everyday rides, all in one place."}</p>
             </div>
 
             <form className="enhanced-preview-form" onSubmit={previewSubmit}>
@@ -170,7 +170,7 @@ export function Enhanced() {
             </div>
 
             <div className="enhanced-preview-switch">
-              <span>{isSignIn ? "New to Wayfare?" : "Already have an account?"}</span>
+              <span>{isSignIn ? "New to Vhaya?" : "Already have an account?"}</span>
               <button onClick={() => switchMode(isSignIn ? "create-account" : "sign-in")} type="button">
                 {isSignIn ? "Create an account" : "Sign in"}
               </button>
@@ -185,7 +185,7 @@ export function Enhanced() {
 
         <footer className="enhanced-preview-footer">
           <span><LockKeyhole aria-hidden="true" size={12} /> A little closer to wherever you’re going.</span>
-          <span>WAYFARE <i>·</i> POLOKWANE</span>
+          <span>VHAYA <i>·</i> POLOKWANE</span>
         </footer>
       </div>
     </main>

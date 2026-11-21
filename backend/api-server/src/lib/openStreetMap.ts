@@ -2,7 +2,7 @@ import type { RouteCoordinates } from "./routeQuote";
 
 const NOMINATIM_SEARCH_URL = "https://nominatim.openstreetmap.org/search";
 const NOMINATIM_REVERSE_URL = "https://nominatim.openstreetmap.org/reverse";
-const NOMINATIM_USER_AGENT = "WayfareRide/1.0 (address search)";
+const NOMINATIM_USER_AGENT = "VhayaRide/1.0 (address search)";
 const CACHE_TTL_MS = 24 * 60 * 60 * 1000;
 
 export const DEFAULT_OSM_SEARCH_CENTER: RouteCoordinates = {

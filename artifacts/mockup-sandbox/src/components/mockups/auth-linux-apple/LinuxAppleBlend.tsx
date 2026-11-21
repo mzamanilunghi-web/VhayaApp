@@ -60,7 +60,7 @@ export function LinuxAppleBlend() {
         : "Reset your password";
 
   const description = mode === "verify"
-    ? `We sent a verification link to ${email || "your email address"}. Verify your email before using Wayfare.`
+    ? `We sent a verification link to ${email || "your email address"}. Verify your email before using Vhaya.`
     : mode === "sign-in"
       ? "Sign in to arrange local trips and keep your journeys together."
       : mode === "create-account"
@@ -70,10 +70,10 @@ export function LinuxAppleBlend() {
   return (
     <main className="wayfare-auth">
       <header className="auth-topbar">
-        <a className="brand-lockup" href="#home" aria-label="Wayfare home">
+        <a className="brand-lockup" href="#home" aria-label="Vhaya home">
           <span className="brand-symbol"><Navigation size={19} strokeWidth={2.4} /></span>
           <span className="brand-copy">
-            <strong>Wayfare</strong>
+            <strong>Vhaya</strong>
             <small>Made for the way there</small>
           </span>
         </a>
@@ -81,7 +81,7 @@ export function LinuxAppleBlend() {
       </header>
 
       <div className="auth-layout">
-        <section className="auth-story" aria-label="Wayfare journey">
+        <section className="auth-story" aria-label="Vhaya journey">
           <div className="story-kicker"><span>01</span> YOUR NEXT TRIP, IN GOOD HANDS</div>
           <h1>Getting there<br />should feel <em>easy.</em></h1>
           <p className="story-copy">Local rides, thoughtfully arranged. Pick up where you left off and keep every journey in view.</p>
@@ -116,7 +116,7 @@ export function LinuxAppleBlend() {
 
         <section className="auth-panel" aria-labelledby="auth-title">
           <div className="panel-inner">
-            <div className="eyebrow"><span className="eyebrow-mark" /> {mode === "verify" ? "EMAIL VERIFICATION" : "WAYFARE ACCOUNT"}</div>
+            <div className="eyebrow"><span className="eyebrow-mark" /> {mode === "verify" ? "EMAIL VERIFICATION" : "VHAYA ACCOUNT"}</div>
             <h2 id="auth-title">{title}</h2>
             <p className="panel-description">{description}</p>
 
@@ -162,7 +162,7 @@ export function LinuxAppleBlend() {
                   {busy ? <RotateCw className="spin-icon" size={17} /> : <ArrowRight size={18} />}
                 </button>
                 {mode === "sign-in" ? (
-                  <div className="account-switch"><span>New to Wayfare?</span><button className="text-button" type="button" onClick={() => changeMode("create-account")}>Create an account</button></div>
+                  <div className="account-switch"><span>New to Vhaya?</span><button className="text-button" type="button" onClick={() => changeMode("create-account")}>Create an account</button></div>
                 ) : (
                   <button className="text-button back-link" type="button" onClick={() => changeMode("sign-in")}><ArrowLeft size={14} /> Back to sign in</button>
                 )}
@@ -171,10 +171,10 @@ export function LinuxAppleBlend() {
 
             <div className="panel-foot"><span className="foot-lock"><LockKeyhole size={13} /></span>Protected account access <span className="foot-separator">·</span> No third-party sign-in</div>
           </div>
-          <div className="panel-bottom"><span>WAYFARE / ACCOUNT ACCESS</span><span>LOCAL TRIPS, MADE SIMPLE</span></div>
+          <div className="panel-bottom"><span>VHAYA / ACCOUNT ACCESS</span><span>LOCAL TRIPS, MADE SIMPLE</span></div>
         </section>
       </div>
-      <footer className="auth-footer"><span>Wayfare</span><span>Made for the way there.</span><span className="footer-region">A service for South Africa</span></footer>
+      <footer className="auth-footer"><span>Vhaya</span><span>Made for the way there.</span><span className="footer-region">A service for South Africa</span></footer>
     </main>
   );
 }

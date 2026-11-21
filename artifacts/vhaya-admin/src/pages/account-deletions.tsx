@@ -45,7 +45,7 @@ function formatDate(value: string | null | undefined): string {
 }
 
 function initials(name: string): string {
-  return name.trim().split(/\s+/).slice(0, 2).map((part) => part[0] ?? "").join("").toUpperCase() || "W";
+  return name.trim().split(/\s+/).slice(0, 2).map((part) => part[0] ?? "").join("").toUpperCase() || "V";
 }
 
 function pseudonymizedState(request: AccountDeletionRequest): boolean | null {
@@ -68,10 +68,10 @@ function pseudonymizedState(request: AccountDeletionRequest): boolean | null {
 
 function Brand() {
   return (
-    <div className="review-brand" aria-label="Wayfare staff">
-      <div className="review-brand-mark">W</div>
+    <div className="review-brand" aria-label="Vhaya staff">
+      <div className="review-brand-mark">V</div>
       <div>
-        <div className="review-brand-name">wayfare</div>
+        <div className="review-brand-name">Vhaya</div>
         <div className="review-brand-subtitle">staff desk</div>
       </div>
     </div>
@@ -126,12 +126,12 @@ function AccountDeletionAuth() {
         <h1>{denied ? "Staff access required" : unverified ? "Verify your email" : sessionError ? "Session unavailable" : "Sign in to review"}</h1>
         <p>
           {denied
-            ? "This verified account is not provisioned for the Wayfare staff desk."
+            ? "This verified account is not provisioned for the Vhaya staff desk."
             : unverified
               ? `Staff access requires a verified account. Check ${auth.user?.email ?? "your inbox"} for a verification link.`
               : sessionError
                 ? "The staff session could not be confirmed. Access has not been bypassed."
-                : "Use your verified Wayfare staff account to review account deletion requests."}
+                : "Use your verified Vhaya staff account to review account deletion requests."}
         </p>
         {(error || auth.error) && <div className="account-auth-error" role="alert">{error || auth.error}</div>}
         {auth.status === "signed_out" && (
@@ -464,7 +464,7 @@ function AccountDeletionsDesk() {
                 </section>
               )}
 
-              <div className="deletion-audit-note"><FileCheck2 size={14} /><span>Confirmations and decisions are submitted through the Wayfare staff API.</span></div>
+              <div className="deletion-audit-note"><FileCheck2 size={14} /><span>Confirmations and decisions are submitted through the Vhaya staff API.</span></div>
             </article>
           ) : query.isLoading ? (
             <div className="deletion-detail-loading" aria-hidden="true"><div /><div /><div /><div /></div>

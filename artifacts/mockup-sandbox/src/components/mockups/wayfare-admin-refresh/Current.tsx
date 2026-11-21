@@ -104,7 +104,7 @@ export function Current() {
                 </div>
                 <div className="mt-3 flex gap-2 rounded-xl border border-[#dce3da] bg-[#f8f9f5] p-3 text-[10px] leading-4 text-[#738078]">
                   <ShieldCheck className="mt-0.5 shrink-0 text-[#738078]" size={14} />
-                  <p>Wayfare does not store document images. Inspect originals through your approved staff process.</p>
+                  <p>Vhaya does not store document images. Inspect originals through your approved staff process.</p>
                 </div>
 
                 <article className="mt-4 rounded-2xl border border-[#dce3da] bg-[#fffefa] p-4">

@@ -317,7 +317,7 @@ Returns up to 100 applications in `submitted`, `under_review`, or
 four compliance checks, and `incompleteComplianceDocuments`.
 
 This queue is limited to pending driver applications. Document files are
-reviewed outside Wayfare (for example, copies received by email); no document
+reviewed outside Vhaya (for example, copies received by email); no document
 upload is required or exposed by the API. Staff record the result of each
 off-platform check with the compliance endpoint below.
 

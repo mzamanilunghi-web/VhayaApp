@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-Wayfare is a South African ride-service backend built with Firebase
+Vhaya is a South African ride-service backend built with Firebase
 Authentication, an Express API, PostgreSQL and Drizzle. The API supports rider,
 driver and operations workflows. Driver application files are stored in a
 private Replit App Storage bucket and are never served through public URLs.

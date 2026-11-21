@@ -121,8 +121,8 @@ export function Current() {
         <aside className="hidden w-[232px] shrink-0 flex-col bg-[#26362e] px-4 py-6 text-[#f6f3e9] lg:flex">
           <div className="mb-9 flex items-center rounded-xl bg-[#f5f3ec] px-3 py-2">
             <img
-              src="/__mockup/images/wayfare-logo.png"
-              alt="Wayfare"
+              src="/__mockup/images/vhaya-logo.svg"
+              alt="Vhaya"
               className="h-7 w-[138px] object-contain object-left"
             />
           </div>
@@ -170,7 +170,7 @@ export function Current() {
                 Operations / Overview
               </div>
               <div className="mt-0.5 text-[12px] font-semibold text-[#303a32]">
-                Wayfare admin
+                Vhaya admin
               </div>
             </div>
             <div className="flex items-center gap-2 sm:gap-4">
@@ -295,7 +295,7 @@ export function Current() {
                       Recent ride activity
                     </h2>
                     <p className="mt-1 text-[10px] text-[#858b81]">
-                      Latest ride requests across Wayfare.
+                      Latest ride requests across Vhaya.
                     </p>
                   </div>
                   <span className="rounded-lg bg-[#f0efe9] px-2.5 py-1.5 text-[9px] font-semibold text-[#737b72]">
@@ -337,7 +337,7 @@ export function Current() {
             </div>
 
             <div className="mt-5 flex flex-wrap items-center justify-between gap-2 border-t border-[#e3e0d6] pt-4 text-[9px] text-[#90948b]">
-              <span>Wayfare Operations · South Africa</span>
+              <span>Vhaya Operations · South Africa</span>
               <span>
                 Values and ride records shown are sample data for this design
                 reference.

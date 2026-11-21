@@ -103,7 +103,7 @@ export function Enhanced() {
     <main className="do-enhanced">
       <section className="do-device do-enhanced-device" aria-label="Enhanced driver application vehicle step">
         <header className="do-header">
-          <h1 className="do-title">Drive with Wayfare</h1>
+          <h1 className="do-title">Drive with Vhaya</h1>
           <Truck className="do-header-icon" aria-hidden="true" />
         </header>
         <p className="do-description">
@@ -228,7 +228,7 @@ export function Enhanced() {
         </div>
         <p className="do-helper">
           No vehicle yet? Save a draft and return when you have vehicle details.
-          Wayfare has not connected a rental partner.
+          Vhaya has not connected a rental partner.
         </p>
         <div className="do-actions">
           <button className="do-button secondary" type="button">

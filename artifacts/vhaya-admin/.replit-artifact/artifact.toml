@@ -1,7 +1,7 @@
 kind = "web"
 previewPath = "/"
 title = "Vhaya Admin"
-description = "A staff-only console for reviewing pending driver applications and recording manual checks for documents received by email, using the existing Wayfare API."
+description = "A staff-only console for reviewing pending driver applications and recording manual checks for documents received by email, using the existing Vhaya API."
 version = "1.0.0"
 id = "artifacts/vhaya-admin"
 router = "path"

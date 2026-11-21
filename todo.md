@@ -1,6 +1,6 @@
-# Wayfare — To-do
+# Vhaya — To-do
 
-Use this file as the working checklist for Wayfare. Check it before starting new work and update it as items are completed or priorities change.
+Use this file as the working checklist for Vhaya. Check it before starting new work and update it as items are completed or priorities change.
 
 ## Current baseline
 
@@ -14,7 +14,7 @@ Use this file as the working checklist for Wayfare. Check it before starting new
 
 Checked 18 October 2026 against official Uber, Bolt, and inDrive feature pages. This is a focused feature-gap list, not a promise that every feature is available in every country. Competitor features and payment methods vary by market.
 
-### Already represented in Wayfare
+### Already represented in Vhaya
 
 - Rider-set fares and driver counteroffers (inDrive-style); fares remain illustrative, while requests and offers are stored server-side.
 - Basic ride categories, server-saved trip status and ratings, and local trusted-contact/safety panels.
@@ -56,7 +56,7 @@ South Africa is the selected launch country. Polokwane is the first launch city,
 - **Uber South Africa:** its local pages advertise advance booking, airport rides, rider emergency assistance, trusted contacts, driver screening, and 24/7 driver support. Confirm which features are enabled in the chosen city before promising them.
 - **Bolt South Africa:** its local pages advertise advance booking, emergency assistance, live trip sharing, 24/7 support, and a Women for Women ride option; Bolt states some features vary by country. Its local driver guides also cover vehicle categories, document checks, inspections, airport waiting areas, ratings, and driver payments.
 - **inDrive South Africa:** its local pages advertise fare offers, driver choice, verified drivers, and no surge pricing. It also advertises card payments, city-to-city rides, and delivery/courier services.
-- **Wayfare implications:** scheduled rides, driver comparison, verification, real safety/support, and payments are relevant to the SA comparison. Intercity and delivery should remain optional until the first city and core service are established. Do not treat another platform's driver rules as South African legal advice.
+- **Vhaya implications:** scheduled rides, driver comparison, verification, real safety/support, and payments are relevant to the SA comparison. Intercity and delivery should remain optional until the first city and core service are established. Do not treat another platform's driver rules as South African legal advice.
 
 South African source pages:
 
