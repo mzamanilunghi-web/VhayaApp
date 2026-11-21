@@ -30,6 +30,20 @@ export interface RideRecord {
   pickupAt?: bigint | null;
   createdAt: bigint;
   isReturnRequest: boolean;
+  /** @nullable */
+  pickupNote: string | null;
+  /** @nullable */
+  cashChangeForZar: number | null;
+  /** @nullable */
+  beneficiaryName: string | null;
+  /** @nullable */
+  beneficiaryPhone: string | null;
+  isSharedRide: boolean;
+  seatCount: number;
+  isReturnTrip: boolean;
+  includesGravelRoad: boolean;
+  /** @nullable */
+  clientRequestId: string | null;
   offers: RideRecordOffersItem[];
   [key: string]: unknown;
  }

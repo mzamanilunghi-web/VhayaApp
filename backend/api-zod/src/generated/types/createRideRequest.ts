@@ -37,5 +37,30 @@ export interface CreateRideRequest {
   paymentMethod?: CreateRideRequestPaymentMethod;
   /** Explicit Return Request for return-corridor matching; separate from Wait & return. */
   isReturnRequest?: boolean;
+  /** @maxLength 140 */
+  pickupNote?: string;
+  /**
+     * Requested cash note denomination; only valid for cash payment.
+     * @minimum 50
+     * @maximum 500
+     */
+  cashChangeForZar?: number;
+  /** @maxLength 80 */
+  beneficiaryName?: string;
+  /** @maxLength 32 */
+  beneficiaryPhone?: string;
+  isSharedRide?: boolean;
+  /**
+     * @minimum 1
+     * @maximum 4
+     */
+  seatCount?: number;
+  isReturnTrip?: boolean;
+  includesGravelRoad?: boolean;
+  /**
+     * Client-generated reference used to safely retry offline ride creation.
+     * @maxLength 128
+     */
+  clientRequestId?: string;
   [key: string]: unknown;
  }

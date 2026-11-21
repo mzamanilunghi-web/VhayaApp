@@ -14,6 +14,8 @@ export const DeleteAccountInputConfirmation = {
 
 export interface DeleteAccountInput {
   confirmation: DeleteAccountInputConfirmation;
+  /** @maxLength 500 */
+  reason?: string;
 }
 
 export interface PublicAccountDeletionRequestInput {
@@ -238,6 +240,10 @@ export const ReviewOutcome = {
 } as const;
 
 export interface DriverProfileSummary {
+  /** @nullable */
+  contactPhone: string | null;
+  /** @nullable */
+  city: string | null;
   applicationStatus: string;
   verificationStatus: string;
   /** @nullable */
@@ -250,14 +256,49 @@ export interface DriverProfileSummary {
   licenceExpiry: string | null;
   /** @nullable */
   operatingLicenceReference: string | null;
+  gravelReady: boolean;
+  /** @nullable */
+  documentsConsentAt: number | null;
   isOnline: boolean;
   /** @nullable */
   staffNote: string | null;
   /** @nullable */
-  submittedAt: string | null;
+  submittedAt: number | null;
   /** @nullable */
-  reviewedAt: string | null;
-  updatedAt: string;
+  reviewedAt: number | null;
+  updatedAt: number;
+}
+
+export interface DriverProfileEnvelope {
+  profile: DriverProfileSummary | null;
+}
+
+export interface DriverApplicationInput {
+  /** @maxLength 25 */
+  contactPhone?: string;
+  /** @maxLength 80 */
+  city?: string;
+  /** @maxLength 120 */
+  vehicle?: string;
+  /** @maxLength 60 */
+  vehicleColor?: string;
+  /** @maxLength 32 */
+  registration?: string;
+  /** @maxLength 32 */
+  licenceExpiry?: string;
+  /** @maxLength 100 */
+  operatingLicenceReference?: string;
+  gravelReady?: boolean;
+  documentsConsent?: boolean;
+}
+
+export interface DriverOnlineStatusInput {
+  online: boolean;
+}
+
+export interface WalletTopUpInput {
+  /** @minimum 1 */
+  amountMinor: number;
 }
 
 export interface AdminPersonSummary {
@@ -292,6 +333,8 @@ export const CreateRideRequestCategory = {
   standard: 'standard',
   comfort: 'comfort',
   xl: 'xl',
+  bakkie: 'bakkie',
+  parcel: 'parcel',
 } as const;
 
 export type CreateRideRequestPricingMode = typeof CreateRideRequestPricingMode[keyof typeof CreateRideRequestPricingMode];
@@ -343,6 +386,31 @@ export interface CreateRideRequest {
   paymentMethod?: CreateRideRequestPaymentMethod;
   /** Explicit Return Request for return-corridor matching; separate from Wait & return. */
   isReturnRequest?: boolean;
+  /** @maxLength 140 */
+  pickupNote?: string;
+  /**
+     * Requested cash note denomination; only valid for cash payment.
+     * @minimum 50
+     * @maximum 500
+     */
+  cashChangeForZar?: number;
+  /** @maxLength 80 */
+  beneficiaryName?: string;
+  /** @maxLength 32 */
+  beneficiaryPhone?: string;
+  isSharedRide?: boolean;
+  /**
+     * @minimum 1
+     * @maximum 4
+     */
+  seatCount?: number;
+  isReturnTrip?: boolean;
+  includesGravelRoad?: boolean;
+  /**
+     * Client-generated reference used to safely retry offline ride creation.
+     * @maxLength 128
+     */
+  clientRequestId?: string;
   [key: string]: unknown;
  }
 
@@ -395,6 +463,20 @@ export interface RideRecord {
   pickupAt?: number | null;
   createdAt: number;
   isReturnRequest: boolean;
+  /** @nullable */
+  pickupNote: string | null;
+  /** @nullable */
+  cashChangeForZar: number | null;
+  /** @nullable */
+  beneficiaryName: string | null;
+  /** @nullable */
+  beneficiaryPhone: string | null;
+  isSharedRide: boolean;
+  seatCount: number;
+  isReturnTrip: boolean;
+  includesGravelRoad: boolean;
+  /** @nullable */
+  clientRequestId: string | null;
   offers: RideRecordOffersItem[];
   [key: string]: unknown;
  }
@@ -406,6 +488,151 @@ export interface RideFeedResponse {
 
 export interface CreateRideResponse {
   trip: RideRecord;
+}
+
+export type WalletSummaryCurrency = typeof WalletSummaryCurrency[keyof typeof WalletSummaryCurrency];
+
+
+export const WalletSummaryCurrency = {
+  ZAR: 'ZAR',
+} as const;
+
+export interface WalletSummary {
+  id: string;
+  userId: string;
+  /** Wallet balance in minor currency units. */
+  balanceMinor: number;
+  currency: WalletSummaryCurrency;
+  createdAt: number;
+  updatedAt: number;
+}
+
+export interface WalletTransaction {
+  id: string;
+  type: string;
+  amountMinor: number;
+  currency: string;
+  /** @nullable */
+  reference: string | null;
+  /** @nullable */
+  description: string | null;
+  createdAt: number;
+}
+
+export interface WalletEnvelope {
+  wallet: WalletSummary;
+  transactions: WalletTransaction[];
+  creditedAmountMinor?: number;
+}
+
+export interface CashChangeCreditInput {
+  /**
+     * @minLength 1
+     * @maxLength 128
+     */
+  tripId: string;
+  /**
+     * @minimum 100
+     * @maximum 50000
+     */
+  amountMinor: number;
+  /** @maxLength 120 */
+  note?: string;
+}
+
+export type CashChangeCreditResponse = WalletEnvelope & {
+  riderWallet: WalletSummary;
+  creditedAmountMinor: number;
+  tripId: string;
+};
+
+export interface RedeemWalletVoucherInput {
+  /** @pattern ^VHAYA-[A-F0-9]{8}-[A-F0-9]{8}$ */
+  code: string;
+}
+
+export interface WalletTransferInput {
+  /**
+     * The Vhaya account email or verified South African mobile number.
+     * @minLength 5
+     * @maxLength 254
+     */
+  recipient: string;
+  /** @minimum 500 */
+  amountMinor: number;
+  /** @maxLength 120 */
+  note?: string;
+}
+
+export type WalletTransferResponseTransfer = {
+  reference: string;
+  amountMinor: number;
+};
+
+export type WalletTransferResponse = WalletEnvelope & {
+  transfer: WalletTransferResponseTransfer;
+};
+
+export interface IssueWalletVoucherInput {
+  /** @minimum 100 */
+  amountMinor: number;
+  /** Optional expiry time in Unix milliseconds. */
+  expiresAt?: number;
+}
+
+export type WalletVoucherStatus = typeof WalletVoucherStatus[keyof typeof WalletVoucherStatus];
+
+
+export const WalletVoucherStatus = {
+  issued: 'issued',
+  redeemed: 'redeemed',
+  expired: 'expired',
+  revoked: 'revoked',
+} as const;
+
+export interface WalletVoucher {
+  id: string;
+  /** Last four characters of the stored code hash, not a redeemable voucher code. */
+  codeSuffix: string;
+  amountMinor: number;
+  currency: string;
+  status: WalletVoucherStatus;
+  createdAt: number;
+  /** @nullable */
+  expiresAt: number | null;
+  /** @nullable */
+  redeemedAt: number | null;
+}
+
+export interface AdminWalletVouchersResponse {
+  vouchers: WalletVoucher[];
+}
+
+export type IssueWalletVoucherResponseVoucherStatus = typeof IssueWalletVoucherResponseVoucherStatus[keyof typeof IssueWalletVoucherResponseVoucherStatus];
+
+
+export const IssueWalletVoucherResponseVoucherStatus = {
+  issued: 'issued',
+} as const;
+
+export type IssueWalletVoucherResponseVoucher = {
+  id: string;
+  /** One-time display of the redeemable voucher code. */
+  code: string;
+  amountMinor: number;
+  currency: string;
+  status: IssueWalletVoucherResponseVoucherStatus;
+  createdAt: number;
+  /** @nullable */
+  expiresAt: number | null;
+};
+
+export interface IssueWalletVoucherResponse {
+  voucher: IssueWalletVoucherResponseVoucher;
+}
+
+export interface SupportCasesEnvelope {
+  cases: SupportCase[];
 }
 
 export interface AdminRide {
@@ -611,6 +838,11 @@ export interface AdminDriverApplication {
   licenceExpiry: string | null;
   /** @nullable */
   operatingLicenceReference: string | null;
+  /** @nullable */
+  contactPhone: string | null;
+  /** @nullable */
+  city: string | null;
+  gravelReady: boolean;
   /** @nullable */
   staffNote: string | null;
   /** @nullable */
@@ -1237,6 +1469,18 @@ export interface AdminDriverSubscriptionUpdate {
   reason?: string;
 }
 
+export type RevokeAdminWalletVoucher200Status = typeof RevokeAdminWalletVoucher200Status[keyof typeof RevokeAdminWalletVoucher200Status];
+
+
+export const RevokeAdminWalletVoucher200Status = {
+  revoked: 'revoked',
+} as const;
+
+export type RevokeAdminWalletVoucher200 = {
+  id: string;
+  status: RevokeAdminWalletVoucher200Status;
+};
+
 export type GetAdminRidesParams = {
   /**
    * @minLength 2
@@ -1382,10 +1626,5 @@ export type SuspendAdminPerson200 = {
   suspendedAt?: number | null;
   /** @nullable */
   suspendedReason?: string | null;
-};
-
-export type GetSupportCases200 = {
-  cases?: SupportCase[];
-  required?: unknown;
 };
 

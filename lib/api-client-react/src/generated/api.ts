@@ -35,7 +35,10 @@ import type {
   AdminReviewWriteResult,
   AdminRidesResponse,
   AdminSession,
+  AdminWalletVouchersResponse,
   ApprovePayoutBatch200,
+  CashChangeCreditInput,
+  CashChangeCreditResponse,
   CompleteAccountDeletionInput,
   ConfirmExternalPayoutInput,
   CreateAdminReviewRequest,
@@ -44,9 +47,12 @@ import type {
   CreateRideRequest,
   CreateRideResponse,
   DeleteAccountInput,
+  DriverApplicationInput,
   DriverEarnings,
   DriverOnlineLocationInput,
   DriverOnlineLocationResponse,
+  DriverOnlineStatusInput,
+  DriverProfileEnvelope,
   DriverPromotionInput,
   DriverPromotionUpdate,
   DriverSubscriptionInitializeInput,
@@ -62,9 +68,10 @@ import type {
   GetPayoutBanks200,
   GetPayoutBatches200,
   GetPayoutRecipients200,
-  GetSupportCases200,
   GetTripReceipt200,
   HealthStatus,
+  IssueWalletVoucherInput,
+  IssueWalletVoucherResponse,
   PayoutBatchDetail,
   PayoutBatchTransferResult,
   PayoutRecipientInput,
@@ -72,17 +79,24 @@ import type {
   PublicAccountDeletionRequestInput,
   PublicAccountDeletionRequestResult,
   PublicAccountDeletionRequestStatus,
+  RedeemWalletVoucherInput,
   RefundResult,
   RejectAccountDeletionInput,
+  RevokeAdminWalletVoucher200,
   RideFeedResponse,
   RunWeeklyPayouts201,
   RunWeeklyPayoutsBody,
   SearchAdminPeopleParams,
   StartPayoutBatchTransfersInput,
+  SupportCasesEnvelope,
   SuspendAdminPerson200,
   SuspendAdminPersonBody,
   UpdateAdminPersonRole200,
-  UpdateAdminPersonRoleRequest
+  UpdateAdminPersonRoleRequest,
+  WalletEnvelope,
+  WalletTopUpInput,
+  WalletTransferInput,
+  WalletTransferResponse
 } from './api.schemas';
 
 import { customFetch } from '../custom-fetch';
@@ -195,7 +209,7 @@ export const getCreateRideRequestUrl = () => {
 }
 
 /**
- * The optional isReturnRequest flag identifies an explicit Return Request and is distinct from Wait & return. Omitted flags are returned as false for compatibility with older requests.
+ * Optional booking details, including Return Request, family beneficiary, shared seats, gravel access, cash-change preference, and an offline idempotency reference, are preserved in ride records.
  * @summary Create a rider ride request
  */
 export const createRideRequest = async (createRideRequestBody: CreateRideRequest, options?: Parameters<typeof customFetch>[1]): Promise<CreateRideResponse> => {
@@ -262,7 +276,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
     export type CreateRideRequestMutationVariables = {data: BodyType<CreateRideRequest>}
 
     /**
- * The optional isReturnRequest flag identifies an explicit Return Request and is distinct from Wait & return. Omitted flags are returned as false for compatibility with older requests.
+ * Optional booking details, including Return Request, family beneficiary, shared seats, gravel access, cash-change preference, and an offline idempotency reference, are preserved in ride records.
  * @summary Create a rider ride request
  */
 export const useCreateRideRequest = <TError = ErrorType<void>,
@@ -274,6 +288,1074 @@ export const useCreateRideRequest = <TError = ErrorType<void>,
         TContext
       > => {
       return useMutation(getCreateRideRequestMutationOptions(options));
+    }
+
+export const getSaveDriverApplicationDraftUrl = () => {
+
+
+
+
+  return `/api/driver/application`
+}
+
+/**
+ * @summary Save a driver application draft
+ */
+export const saveDriverApplicationDraft = async (driverApplicationInput: DriverApplicationInput, options?: Parameters<typeof customFetch>[1]): Promise<DriverProfileEnvelope> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<DriverProfileEnvelope>(getSaveDriverApplicationDraftUrl(),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(driverApplicationInput)
+  }
+);}
+
+
+
+
+
+export const getSaveDriverApplicationDraftMutationKey = () => ['saveDriverApplicationDraft'] as const;
+
+export const getSaveDriverApplicationDraftMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof saveDriverApplicationDraft>>, TError,SaveDriverApplicationDraftMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof saveDriverApplicationDraft>>, TError,SaveDriverApplicationDraftMutationVariables, TContext> => {
+
+const mutationKey = getSaveDriverApplicationDraftMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof saveDriverApplicationDraft>>, SaveDriverApplicationDraftMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  saveDriverApplicationDraft(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SaveDriverApplicationDraftMutationResult = NonNullable<Awaited<ReturnType<typeof saveDriverApplicationDraft>>>
+    export type SaveDriverApplicationDraftMutationBody = BodyType<DriverApplicationInput>
+    export type SaveDriverApplicationDraftMutationError = ErrorType<void>
+    export type SaveDriverApplicationDraftMutationVariables = {data: BodyType<DriverApplicationInput>}
+
+    /** @summary Save a driver application draft */
+export const useSaveDriverApplicationDraft = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof saveDriverApplicationDraft>>, TError,SaveDriverApplicationDraftMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof saveDriverApplicationDraft>>,
+        TError,
+        SaveDriverApplicationDraftMutationVariables,
+        TContext
+      > => {
+      return useMutation(getSaveDriverApplicationDraftMutationOptions(options));
+    }
+
+export const getSubmitDriverApplicationUrl = () => {
+
+
+
+
+  return `/api/driver/application`
+}
+
+/**
+ * @summary Submit a driver application for staff review
+ */
+export const submitDriverApplication = async (driverApplicationInput: DriverApplicationInput, options?: Parameters<typeof customFetch>[1]): Promise<DriverProfileEnvelope> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<DriverProfileEnvelope>(getSubmitDriverApplicationUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(driverApplicationInput)
+  }
+);}
+
+
+
+
+
+export const getSubmitDriverApplicationMutationKey = () => ['submitDriverApplication'] as const;
+
+export const getSubmitDriverApplicationMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof submitDriverApplication>>, TError,SubmitDriverApplicationMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof submitDriverApplication>>, TError,SubmitDriverApplicationMutationVariables, TContext> => {
+
+const mutationKey = getSubmitDriverApplicationMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof submitDriverApplication>>, SubmitDriverApplicationMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  submitDriverApplication(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SubmitDriverApplicationMutationResult = NonNullable<Awaited<ReturnType<typeof submitDriverApplication>>>
+    export type SubmitDriverApplicationMutationBody = BodyType<DriverApplicationInput>
+    export type SubmitDriverApplicationMutationError = ErrorType<void>
+    export type SubmitDriverApplicationMutationVariables = {data: BodyType<DriverApplicationInput>}
+
+    /** @summary Submit a driver application for staff review */
+export const useSubmitDriverApplication = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof submitDriverApplication>>, TError,SubmitDriverApplicationMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof submitDriverApplication>>,
+        TError,
+        SubmitDriverApplicationMutationVariables,
+        TContext
+      > => {
+      return useMutation(getSubmitDriverApplicationMutationOptions(options));
+    }
+
+export const getGetDriverProfileUrl = () => {
+
+
+
+
+  return `/api/driver/profile`
+}
+
+/**
+ * @summary Get the authenticated driver's application and profile
+ */
+export const getDriverProfile = async ( options?: Parameters<typeof customFetch>[1]): Promise<DriverProfileEnvelope> => {
+
+  return customFetch<DriverProfileEnvelope>(getGetDriverProfileUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetDriverProfileQueryKey = () => {
+    return [
+    `/api/driver/profile`
+    ] as const;
+    }
+
+
+export const getGetDriverProfileQueryOptions = <TData = Awaited<ReturnType<typeof getDriverProfile>>, TError = ErrorType<void>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getDriverProfile>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetDriverProfileQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getDriverProfile>>> = ({ signal }) => getDriverProfile({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getDriverProfile>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetDriverProfileQueryResult = NonNullable<Awaited<ReturnType<typeof getDriverProfile>>>
+export type GetDriverProfileQueryError = ErrorType<void>
+
+
+/** @summary Get the authenticated driver's application and profile */
+export function useGetDriverProfile<TData = Awaited<ReturnType<typeof getDriverProfile>>, TError = ErrorType<void>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getDriverProfile>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetDriverProfileQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getSetDriverOnlineStatusUrl = () => {
+
+
+
+
+  return `/api/driver/profile/online`
+}
+
+/**
+ * @summary Set the authenticated driver's online status
+ */
+export const setDriverOnlineStatus = async (driverOnlineStatusInput: DriverOnlineStatusInput, options?: Parameters<typeof customFetch>[1]): Promise<void> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<void>(getSetDriverOnlineStatusUrl(),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(driverOnlineStatusInput)
+  }
+);}
+
+
+
+
+
+export const getSetDriverOnlineStatusMutationKey = () => ['setDriverOnlineStatus'] as const;
+
+export const getSetDriverOnlineStatusMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof setDriverOnlineStatus>>, TError,SetDriverOnlineStatusMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof setDriverOnlineStatus>>, TError,SetDriverOnlineStatusMutationVariables, TContext> => {
+
+const mutationKey = getSetDriverOnlineStatusMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof setDriverOnlineStatus>>, SetDriverOnlineStatusMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  setDriverOnlineStatus(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SetDriverOnlineStatusMutationResult = NonNullable<Awaited<ReturnType<typeof setDriverOnlineStatus>>>
+    export type SetDriverOnlineStatusMutationBody = BodyType<DriverOnlineStatusInput>
+    export type SetDriverOnlineStatusMutationError = ErrorType<void>
+    export type SetDriverOnlineStatusMutationVariables = {data: BodyType<DriverOnlineStatusInput>}
+
+    /** @summary Set the authenticated driver's online status */
+export const useSetDriverOnlineStatus = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof setDriverOnlineStatus>>, TError,SetDriverOnlineStatusMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof setDriverOnlineStatus>>,
+        TError,
+        SetDriverOnlineStatusMutationVariables,
+        TContext
+      > => {
+      return useMutation(getSetDriverOnlineStatusMutationOptions(options));
+    }
+
+export const getGetOwnWalletUrl = () => {
+
+
+
+
+  return `/api/wallet`
+}
+
+/**
+ * @summary Get the authenticated user's wallet and recent transactions
+ */
+export const getOwnWallet = async ( options?: Parameters<typeof customFetch>[1]): Promise<WalletEnvelope> => {
+
+  return customFetch<WalletEnvelope>(getGetOwnWalletUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetOwnWalletQueryKey = () => {
+    return [
+    `/api/wallet`
+    ] as const;
+    }
+
+
+export const getGetOwnWalletQueryOptions = <TData = Awaited<ReturnType<typeof getOwnWallet>>, TError = ErrorType<void>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getOwnWallet>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetOwnWalletQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getOwnWallet>>> = ({ signal }) => getOwnWallet({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getOwnWallet>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetOwnWalletQueryResult = NonNullable<Awaited<ReturnType<typeof getOwnWallet>>>
+export type GetOwnWalletQueryError = ErrorType<void>
+
+
+/** @summary Get the authenticated user's wallet and recent transactions */
+export function useGetOwnWallet<TData = Awaited<ReturnType<typeof getOwnWallet>>, TError = ErrorType<void>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getOwnWallet>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetOwnWalletQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getCreditCashChangeToRiderWalletUrl = () => {
+
+
+
+
+  return `/api/wallet/cash-change-credit`
+}
+
+/**
+ * Atomically transfers value from the assigned driver's wallet to the rider. The driver must have sufficient wallet credit, and each ride can be credited once.
+ * @summary Credit cash change to the rider after a completed cash ride
+ */
+export const creditCashChangeToRiderWallet = async (cashChangeCreditInput: CashChangeCreditInput, options?: Parameters<typeof customFetch>[1]): Promise<CashChangeCreditResponse> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<CashChangeCreditResponse>(getCreditCashChangeToRiderWalletUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(cashChangeCreditInput)
+  }
+);}
+
+
+
+
+
+export const getCreditCashChangeToRiderWalletMutationKey = () => ['creditCashChangeToRiderWallet'] as const;
+
+export const getCreditCashChangeToRiderWalletMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof creditCashChangeToRiderWallet>>, TError,CreditCashChangeToRiderWalletMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof creditCashChangeToRiderWallet>>, TError,CreditCashChangeToRiderWalletMutationVariables, TContext> => {
+
+const mutationKey = getCreditCashChangeToRiderWalletMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof creditCashChangeToRiderWallet>>, CreditCashChangeToRiderWalletMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  creditCashChangeToRiderWallet(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreditCashChangeToRiderWalletMutationResult = NonNullable<Awaited<ReturnType<typeof creditCashChangeToRiderWallet>>>
+    export type CreditCashChangeToRiderWalletMutationBody = BodyType<CashChangeCreditInput>
+    export type CreditCashChangeToRiderWalletMutationError = ErrorType<void>
+    export type CreditCashChangeToRiderWalletMutationVariables = {data: BodyType<CashChangeCreditInput>}
+
+    /**
+ * Atomically transfers value from the assigned driver's wallet to the rider. The driver must have sufficient wallet credit, and each ride can be credited once.
+ * @summary Credit cash change to the rider after a completed cash ride
+ */
+export const useCreditCashChangeToRiderWallet = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof creditCashChangeToRiderWallet>>, TError,CreditCashChangeToRiderWalletMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof creditCashChangeToRiderWallet>>,
+        TError,
+        CreditCashChangeToRiderWalletMutationVariables,
+        TContext
+      > => {
+      return useMutation(getCreditCashChangeToRiderWalletMutationOptions(options));
+    }
+
+export const getRedeemWalletVoucherUrl = () => {
+
+
+
+
+  return `/api/wallet/redeem-voucher`
+}
+
+/**
+ * @summary Redeem a single-use Vhaya wallet voucher
+ */
+export const redeemWalletVoucher = async (redeemWalletVoucherInput: RedeemWalletVoucherInput, options?: Parameters<typeof customFetch>[1]): Promise<WalletEnvelope> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<WalletEnvelope>(getRedeemWalletVoucherUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(redeemWalletVoucherInput)
+  }
+);}
+
+
+
+
+
+export const getRedeemWalletVoucherMutationKey = () => ['redeemWalletVoucher'] as const;
+
+export const getRedeemWalletVoucherMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof redeemWalletVoucher>>, TError,RedeemWalletVoucherMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof redeemWalletVoucher>>, TError,RedeemWalletVoucherMutationVariables, TContext> => {
+
+const mutationKey = getRedeemWalletVoucherMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof redeemWalletVoucher>>, RedeemWalletVoucherMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  redeemWalletVoucher(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RedeemWalletVoucherMutationResult = NonNullable<Awaited<ReturnType<typeof redeemWalletVoucher>>>
+    export type RedeemWalletVoucherMutationBody = BodyType<RedeemWalletVoucherInput>
+    export type RedeemWalletVoucherMutationError = ErrorType<void>
+    export type RedeemWalletVoucherMutationVariables = {data: BodyType<RedeemWalletVoucherInput>}
+
+    /** @summary Redeem a single-use Vhaya wallet voucher */
+export const useRedeemWalletVoucher = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof redeemWalletVoucher>>, TError,RedeemWalletVoucherMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof redeemWalletVoucher>>,
+        TError,
+        RedeemWalletVoucherMutationVariables,
+        TContext
+      > => {
+      return useMutation(getRedeemWalletVoucherMutationOptions(options));
+    }
+
+export const getInitializeWalletTopUpUrl = () => {
+
+
+
+
+  return `/api/wallet/top-up`
+}
+
+/**
+ * @summary Start a Paystack wallet top-up
+ */
+export const initializeWalletTopUp = async (walletTopUpInput: WalletTopUpInput, options?: Parameters<typeof customFetch>[1]): Promise<void> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<void>(getInitializeWalletTopUpUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(walletTopUpInput)
+  }
+);}
+
+
+
+
+
+export const getInitializeWalletTopUpMutationKey = () => ['initializeWalletTopUp'] as const;
+
+export const getInitializeWalletTopUpMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof initializeWalletTopUp>>, TError,InitializeWalletTopUpMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof initializeWalletTopUp>>, TError,InitializeWalletTopUpMutationVariables, TContext> => {
+
+const mutationKey = getInitializeWalletTopUpMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof initializeWalletTopUp>>, InitializeWalletTopUpMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  initializeWalletTopUp(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type InitializeWalletTopUpMutationResult = NonNullable<Awaited<ReturnType<typeof initializeWalletTopUp>>>
+    export type InitializeWalletTopUpMutationBody = BodyType<WalletTopUpInput>
+    export type InitializeWalletTopUpMutationError = ErrorType<void>
+    export type InitializeWalletTopUpMutationVariables = {data: BodyType<WalletTopUpInput>}
+
+    /** @summary Start a Paystack wallet top-up */
+export const useInitializeWalletTopUp = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof initializeWalletTopUp>>, TError,InitializeWalletTopUpMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof initializeWalletTopUp>>,
+        TError,
+        InitializeWalletTopUpMutationVariables,
+        TContext
+      > => {
+      return useMutation(getInitializeWalletTopUpMutationOptions(options));
+    }
+
+export const getVerifyWalletTopUpUrl = (reference: string,) => {
+
+
+
+
+  return `/api/wallet/top-ups/${reference}/verify`
+}
+
+/**
+ * @summary Verify a wallet top-up with Paystack
+ */
+export const verifyWalletTopUp = async (reference: string, options?: Parameters<typeof customFetch>[1]): Promise<void> => {
+
+  return customFetch<void>(getVerifyWalletTopUpUrl(reference),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getVerifyWalletTopUpQueryKey = (reference: string,) => {
+    return [
+    `/api/wallet/top-ups/${reference}/verify`
+    ] as const;
+    }
+
+
+export const getVerifyWalletTopUpQueryOptions = <TData = Awaited<ReturnType<typeof verifyWalletTopUp>>, TError = ErrorType<void>>(reference: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof verifyWalletTopUp>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getVerifyWalletTopUpQueryKey(reference);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof verifyWalletTopUp>>> = ({ signal }) => verifyWalletTopUp(reference, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: reference !== null && reference !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof verifyWalletTopUp>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type VerifyWalletTopUpQueryResult = NonNullable<Awaited<ReturnType<typeof verifyWalletTopUp>>>
+export type VerifyWalletTopUpQueryError = ErrorType<void>
+
+
+/** @summary Verify a wallet top-up with Paystack */
+export function useVerifyWalletTopUp<TData = Awaited<ReturnType<typeof verifyWalletTopUp>>, TError = ErrorType<void>>(
+ reference: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof verifyWalletTopUp>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getVerifyWalletTopUpQueryOptions(reference,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getTransferWalletCreditUrl = () => {
+
+
+
+
+  return `/api/wallet/transfer`
+}
+
+/**
+ * Recipients can be identified by account email or verified South African mobile number. The debit and credit are committed together.
+ * @summary Transfer wallet credit to another Vhaya user
+ */
+export const transferWalletCredit = async (walletTransferInput: WalletTransferInput, options?: Parameters<typeof customFetch>[1]): Promise<WalletTransferResponse> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<WalletTransferResponse>(getTransferWalletCreditUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(walletTransferInput)
+  }
+);}
+
+
+
+
+
+export const getTransferWalletCreditMutationKey = () => ['transferWalletCredit'] as const;
+
+export const getTransferWalletCreditMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof transferWalletCredit>>, TError,TransferWalletCreditMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof transferWalletCredit>>, TError,TransferWalletCreditMutationVariables, TContext> => {
+
+const mutationKey = getTransferWalletCreditMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof transferWalletCredit>>, TransferWalletCreditMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  transferWalletCredit(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type TransferWalletCreditMutationResult = NonNullable<Awaited<ReturnType<typeof transferWalletCredit>>>
+    export type TransferWalletCreditMutationBody = BodyType<WalletTransferInput>
+    export type TransferWalletCreditMutationError = ErrorType<void>
+    export type TransferWalletCreditMutationVariables = {data: BodyType<WalletTransferInput>}
+
+    /**
+ * Recipients can be identified by account email or verified South African mobile number. The debit and credit are committed together.
+ * @summary Transfer wallet credit to another Vhaya user
+ */
+export const useTransferWalletCredit = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof transferWalletCredit>>, TError,TransferWalletCreditMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof transferWalletCredit>>,
+        TError,
+        TransferWalletCreditMutationVariables,
+        TContext
+      > => {
+      return useMutation(getTransferWalletCreditMutationOptions(options));
+    }
+
+export const getGetAdminWalletVouchersUrl = () => {
+
+
+
+
+  return `/api/admin/wallet-vouchers`
+}
+
+/**
+ * @summary List recently issued wallet vouchers
+ */
+export const getAdminWalletVouchers = async ( options?: Parameters<typeof customFetch>[1]): Promise<AdminWalletVouchersResponse> => {
+
+  return customFetch<AdminWalletVouchersResponse>(getGetAdminWalletVouchersUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetAdminWalletVouchersQueryKey = () => {
+    return [
+    `/api/admin/wallet-vouchers`
+    ] as const;
+    }
+
+
+export const getGetAdminWalletVouchersQueryOptions = <TData = Awaited<ReturnType<typeof getAdminWalletVouchers>>, TError = ErrorType<void>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAdminWalletVouchers>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetAdminWalletVouchersQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getAdminWalletVouchers>>> = ({ signal }) => getAdminWalletVouchers({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getAdminWalletVouchers>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetAdminWalletVouchersQueryResult = NonNullable<Awaited<ReturnType<typeof getAdminWalletVouchers>>>
+export type GetAdminWalletVouchersQueryError = ErrorType<void>
+
+
+/** @summary List recently issued wallet vouchers */
+export function useGetAdminWalletVouchers<TData = Awaited<ReturnType<typeof getAdminWalletVouchers>>, TError = ErrorType<void>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAdminWalletVouchers>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetAdminWalletVouchersQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getIssueAdminWalletVoucherUrl = () => {
+
+
+
+
+  return `/api/admin/wallet-vouchers`
+}
+
+/**
+ * The generated code is returned only once. Only its hash is stored.
+ * @summary Issue a single-use wallet voucher
+ */
+export const issueAdminWalletVoucher = async (issueWalletVoucherInput: IssueWalletVoucherInput, options?: Parameters<typeof customFetch>[1]): Promise<IssueWalletVoucherResponse> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<IssueWalletVoucherResponse>(getIssueAdminWalletVoucherUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(issueWalletVoucherInput)
+  }
+);}
+
+
+
+
+
+export const getIssueAdminWalletVoucherMutationKey = () => ['issueAdminWalletVoucher'] as const;
+
+export const getIssueAdminWalletVoucherMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof issueAdminWalletVoucher>>, TError,IssueAdminWalletVoucherMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof issueAdminWalletVoucher>>, TError,IssueAdminWalletVoucherMutationVariables, TContext> => {
+
+const mutationKey = getIssueAdminWalletVoucherMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof issueAdminWalletVoucher>>, IssueAdminWalletVoucherMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  issueAdminWalletVoucher(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type IssueAdminWalletVoucherMutationResult = NonNullable<Awaited<ReturnType<typeof issueAdminWalletVoucher>>>
+    export type IssueAdminWalletVoucherMutationBody = BodyType<IssueWalletVoucherInput>
+    export type IssueAdminWalletVoucherMutationError = ErrorType<void>
+    export type IssueAdminWalletVoucherMutationVariables = {data: BodyType<IssueWalletVoucherInput>}
+
+    /**
+ * The generated code is returned only once. Only its hash is stored.
+ * @summary Issue a single-use wallet voucher
+ */
+export const useIssueAdminWalletVoucher = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof issueAdminWalletVoucher>>, TError,IssueAdminWalletVoucherMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof issueAdminWalletVoucher>>,
+        TError,
+        IssueAdminWalletVoucherMutationVariables,
+        TContext
+      > => {
+      return useMutation(getIssueAdminWalletVoucherMutationOptions(options));
+    }
+
+export const getRevokeAdminWalletVoucherUrl = (voucherId: string,) => {
+
+
+
+
+  return `/api/admin/wallet-vouchers/${voucherId}/revoke`
+}
+
+/**
+ * @summary Cancel an unused wallet voucher
+ */
+export const revokeAdminWalletVoucher = async (voucherId: string, options?: Parameters<typeof customFetch>[1]): Promise<RevokeAdminWalletVoucher200> => {
+
+  return customFetch<RevokeAdminWalletVoucher200>(getRevokeAdminWalletVoucherUrl(voucherId),
+  {
+    ...options,
+    method: 'PATCH'
+
+
+  }
+);}
+
+
+
+
+
+export const getRevokeAdminWalletVoucherMutationKey = () => ['revokeAdminWalletVoucher'] as const;
+
+export const getRevokeAdminWalletVoucherMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof revokeAdminWalletVoucher>>, TError,RevokeAdminWalletVoucherMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof revokeAdminWalletVoucher>>, TError,RevokeAdminWalletVoucherMutationVariables, TContext> => {
+
+const mutationKey = getRevokeAdminWalletVoucherMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof revokeAdminWalletVoucher>>, RevokeAdminWalletVoucherMutationVariables> = (props) => {
+          const {voucherId} = props ?? {};
+
+          return  revokeAdminWalletVoucher(voucherId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RevokeAdminWalletVoucherMutationResult = NonNullable<Awaited<ReturnType<typeof revokeAdminWalletVoucher>>>
+
+    export type RevokeAdminWalletVoucherMutationError = ErrorType<void>
+    export type RevokeAdminWalletVoucherMutationVariables = {voucherId: string}
+
+    /** @summary Cancel an unused wallet voucher */
+export const useRevokeAdminWalletVoucher = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof revokeAdminWalletVoucher>>, TError,RevokeAdminWalletVoucherMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof revokeAdminWalletVoucher>>,
+        TError,
+        RevokeAdminWalletVoucherMutationVariables,
+        TContext
+      > => {
+      return useMutation(getRevokeAdminWalletVoucherMutationOptions(options));
     }
 
 export const getDeleteOwnAccountUrl = () => {
@@ -3774,9 +4856,9 @@ export const getGetSupportCasesUrl = () => {
 /**
  * @summary List the authenticated user's support cases and staff replies
  */
-export const getSupportCases = async ( options?: Parameters<typeof customFetch>[1]): Promise<GetSupportCases200> => {
+export const getSupportCases = async ( options?: Parameters<typeof customFetch>[1]): Promise<SupportCasesEnvelope> => {
 
-  return customFetch<GetSupportCases200>(getGetSupportCasesUrl(),
+  return customFetch<SupportCasesEnvelope>(getGetSupportCasesUrl(),
   {
     ...options,
     method: 'GET'

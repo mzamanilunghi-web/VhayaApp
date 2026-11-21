@@ -29,13 +29,22 @@ export const GetRideFeedResponse = zod.object({
   "pickupAt": zod.int().nullish(),
   "createdAt": zod.int(),
   "isReturnRequest": zod.boolean(),
+  "pickupNote": zod.string().nullable(),
+  "cashChangeForZar": zod.int().nullable(),
+  "beneficiaryName": zod.string().nullable(),
+  "beneficiaryPhone": zod.string().nullable(),
+  "isSharedRide": zod.boolean(),
+  "seatCount": zod.int(),
+  "isReturnTrip": zod.boolean(),
+  "includesGravelRoad": zod.boolean(),
+  "clientRequestId": zod.string().nullable(),
   "offers": zod.array(zod.record(zod.string(), zod.unknown()))
 }).describe('A normalized ride record. Older requests without isReturnRequest are returned with false.'))
 })
 
 
 /**
- * The optional isReturnRequest flag identifies an explicit Return Request and is distinct from Wait & return. Omitted flags are returned as false for compatibility with older requests.
+ * Optional booking details, including Return Request, family beneficiary, shared seats, gravel access, cash-change preference, and an offline idempotency reference, are preserved in ride records.
  * @summary Create a rider ride request
  */
 export const createRideRequestBodyPickupMax = 300;
@@ -47,11 +56,29 @@ export const createRideRequestBodyFareMax = 100000;
 
 export const createRideRequestBodyPaymentMethodDefault = `card`;
 export const createRideRequestBodyIsReturnRequestDefault = false;
+export const createRideRequestBodyPickupNoteMax = 140;
+
+export const createRideRequestBodyCashChangeForZarMin = 50;
+export const createRideRequestBodyCashChangeForZarMax = 500;
+
+export const createRideRequestBodyBeneficiaryNameMax = 80;
+
+export const createRideRequestBodyBeneficiaryPhoneMax = 32;
+
+export const createRideRequestBodyIsSharedRideDefault = false;
+export const createRideRequestBodySeatCountDefault = 1;
+export const createRideRequestBodySeatCountMax = 4;
+
+export const createRideRequestBodyIsReturnTripDefault = false;
+export const createRideRequestBodyIncludesGravelRoadDefault = false;
+export const createRideRequestBodyClientRequestIdMax = 128;
+
+
 
 export const CreateRideRequestBody = zod.looseObject({
   "pickup": zod.string().min(1).max(createRideRequestBodyPickupMax),
   "destination": zod.string().min(1).max(createRideRequestBodyDestinationMax),
-  "category": zod.enum(['standard', 'comfort', 'xl']),
+  "category": zod.enum(['standard', 'comfort', 'xl', 'bakkie', 'parcel']),
   "pricingMode": zod.enum(['estimate', 'offer']),
   "fare": zod.number().gt(createRideRequestBodyFareExclusiveMin).max(createRideRequestBodyFareMax).optional(),
   "route": zod.looseObject({
@@ -59,7 +86,16 @@ export const CreateRideRequestBody = zod.looseObject({
 }),
   "pickupAt": zod.int().optional().describe('Optional pickup time in Unix milliseconds'),
   "paymentMethod": zod.enum(['card', 'cash', 'wallet']).default(createRideRequestBodyPaymentMethodDefault),
-  "isReturnRequest": zod.boolean().default(createRideRequestBodyIsReturnRequestDefault).describe('Explicit Return Request for return-corridor matching; separate from Wait & return.')
+  "isReturnRequest": zod.boolean().default(createRideRequestBodyIsReturnRequestDefault).describe('Explicit Return Request for return-corridor matching; separate from Wait & return.'),
+  "pickupNote": zod.string().max(createRideRequestBodyPickupNoteMax).optional(),
+  "cashChangeForZar": zod.int().min(createRideRequestBodyCashChangeForZarMin).max(createRideRequestBodyCashChangeForZarMax).optional().describe('Requested cash note denomination; only valid for cash payment.'),
+  "beneficiaryName": zod.string().max(createRideRequestBodyBeneficiaryNameMax).optional(),
+  "beneficiaryPhone": zod.string().max(createRideRequestBodyBeneficiaryPhoneMax).optional(),
+  "isSharedRide": zod.boolean().default(createRideRequestBodyIsSharedRideDefault),
+  "seatCount": zod.int().min(1).max(createRideRequestBodySeatCountMax).default(createRideRequestBodySeatCountDefault),
+  "isReturnTrip": zod.boolean().default(createRideRequestBodyIsReturnTripDefault),
+  "includesGravelRoad": zod.boolean().default(createRideRequestBodyIncludesGravelRoadDefault),
+  "clientRequestId": zod.string().max(createRideRequestBodyClientRequestIdMax).optional().describe('Client-generated reference used to safely retry offline ride creation.')
 }).describe('Fare is required when pricingMode is offer. The server verifies the signed route quote before creating the request.')
 
 export const CreateRideRequestResponse = zod.object({
@@ -79,8 +115,395 @@ export const CreateRideRequestResponse = zod.object({
   "pickupAt": zod.int().nullish(),
   "createdAt": zod.int(),
   "isReturnRequest": zod.boolean(),
+  "pickupNote": zod.string().nullable(),
+  "cashChangeForZar": zod.int().nullable(),
+  "beneficiaryName": zod.string().nullable(),
+  "beneficiaryPhone": zod.string().nullable(),
+  "isSharedRide": zod.boolean(),
+  "seatCount": zod.int(),
+  "isReturnTrip": zod.boolean(),
+  "includesGravelRoad": zod.boolean(),
+  "clientRequestId": zod.string().nullable(),
   "offers": zod.array(zod.record(zod.string(), zod.unknown()))
 }).describe('A normalized ride record. Older requests without isReturnRequest are returned with false.')
+})
+
+
+/**
+ * @summary Save a driver application draft
+ */
+export const saveDriverApplicationDraftBodyContactPhoneMax = 25;
+
+export const saveDriverApplicationDraftBodyCityMax = 80;
+
+export const saveDriverApplicationDraftBodyVehicleMax = 120;
+
+export const saveDriverApplicationDraftBodyVehicleColorMax = 60;
+
+export const saveDriverApplicationDraftBodyRegistrationMax = 32;
+
+export const saveDriverApplicationDraftBodyLicenceExpiryMax = 32;
+
+export const saveDriverApplicationDraftBodyOperatingLicenceReferenceMax = 100;
+
+
+
+export const SaveDriverApplicationDraftBody = zod.object({
+  "contactPhone": zod.string().max(saveDriverApplicationDraftBodyContactPhoneMax).optional(),
+  "city": zod.string().max(saveDriverApplicationDraftBodyCityMax).optional(),
+  "vehicle": zod.string().max(saveDriverApplicationDraftBodyVehicleMax).optional(),
+  "vehicleColor": zod.string().max(saveDriverApplicationDraftBodyVehicleColorMax).optional(),
+  "registration": zod.string().max(saveDriverApplicationDraftBodyRegistrationMax).optional(),
+  "licenceExpiry": zod.string().max(saveDriverApplicationDraftBodyLicenceExpiryMax).optional(),
+  "operatingLicenceReference": zod.string().max(saveDriverApplicationDraftBodyOperatingLicenceReferenceMax).optional(),
+  "gravelReady": zod.boolean().optional(),
+  "documentsConsent": zod.boolean().optional()
+})
+
+export const SaveDriverApplicationDraftResponse = zod.object({
+  "profile": zod.union([zod.object({
+  "contactPhone": zod.string().nullable(),
+  "city": zod.string().nullable(),
+  "applicationStatus": zod.string(),
+  "verificationStatus": zod.string(),
+  "vehicle": zod.string().nullable(),
+  "vehicleColor": zod.string().nullable(),
+  "registration": zod.string().nullable(),
+  "licenceExpiry": zod.string().nullable(),
+  "operatingLicenceReference": zod.string().nullable(),
+  "gravelReady": zod.boolean(),
+  "documentsConsentAt": zod.int().nullable(),
+  "isOnline": zod.boolean(),
+  "staffNote": zod.string().nullable(),
+  "submittedAt": zod.int().nullable(),
+  "reviewedAt": zod.int().nullable(),
+  "updatedAt": zod.int()
+}),zod.null()])
+})
+
+
+/**
+ * @summary Submit a driver application for staff review
+ */
+export const submitDriverApplicationBodyContactPhoneMax = 25;
+
+export const submitDriverApplicationBodyCityMax = 80;
+
+export const submitDriverApplicationBodyVehicleMax = 120;
+
+export const submitDriverApplicationBodyVehicleColorMax = 60;
+
+export const submitDriverApplicationBodyRegistrationMax = 32;
+
+export const submitDriverApplicationBodyLicenceExpiryMax = 32;
+
+export const submitDriverApplicationBodyOperatingLicenceReferenceMax = 100;
+
+
+
+export const SubmitDriverApplicationBody = zod.object({
+  "contactPhone": zod.string().max(submitDriverApplicationBodyContactPhoneMax).optional(),
+  "city": zod.string().max(submitDriverApplicationBodyCityMax).optional(),
+  "vehicle": zod.string().max(submitDriverApplicationBodyVehicleMax).optional(),
+  "vehicleColor": zod.string().max(submitDriverApplicationBodyVehicleColorMax).optional(),
+  "registration": zod.string().max(submitDriverApplicationBodyRegistrationMax).optional(),
+  "licenceExpiry": zod.string().max(submitDriverApplicationBodyLicenceExpiryMax).optional(),
+  "operatingLicenceReference": zod.string().max(submitDriverApplicationBodyOperatingLicenceReferenceMax).optional(),
+  "gravelReady": zod.boolean().optional(),
+  "documentsConsent": zod.boolean().optional()
+})
+
+export const SubmitDriverApplicationResponse = zod.object({
+  "profile": zod.union([zod.object({
+  "contactPhone": zod.string().nullable(),
+  "city": zod.string().nullable(),
+  "applicationStatus": zod.string(),
+  "verificationStatus": zod.string(),
+  "vehicle": zod.string().nullable(),
+  "vehicleColor": zod.string().nullable(),
+  "registration": zod.string().nullable(),
+  "licenceExpiry": zod.string().nullable(),
+  "operatingLicenceReference": zod.string().nullable(),
+  "gravelReady": zod.boolean(),
+  "documentsConsentAt": zod.int().nullable(),
+  "isOnline": zod.boolean(),
+  "staffNote": zod.string().nullable(),
+  "submittedAt": zod.int().nullable(),
+  "reviewedAt": zod.int().nullable(),
+  "updatedAt": zod.int()
+}),zod.null()])
+})
+
+
+/**
+ * @summary Get the authenticated driver's application and profile
+ */
+export const GetDriverProfileResponse = zod.object({
+  "profile": zod.union([zod.object({
+  "contactPhone": zod.string().nullable(),
+  "city": zod.string().nullable(),
+  "applicationStatus": zod.string(),
+  "verificationStatus": zod.string(),
+  "vehicle": zod.string().nullable(),
+  "vehicleColor": zod.string().nullable(),
+  "registration": zod.string().nullable(),
+  "licenceExpiry": zod.string().nullable(),
+  "operatingLicenceReference": zod.string().nullable(),
+  "gravelReady": zod.boolean(),
+  "documentsConsentAt": zod.int().nullable(),
+  "isOnline": zod.boolean(),
+  "staffNote": zod.string().nullable(),
+  "submittedAt": zod.int().nullable(),
+  "reviewedAt": zod.int().nullable(),
+  "updatedAt": zod.int()
+}),zod.null()])
+})
+
+
+/**
+ * @summary Set the authenticated driver's online status
+ */
+export const SetDriverOnlineStatusBody = zod.object({
+  "online": zod.boolean()
+})
+
+export const SetDriverOnlineStatusResponse = zod.unknown()
+
+
+/**
+ * @summary Get the authenticated user's wallet and recent transactions
+ */
+export const GetOwnWalletResponse = zod.object({
+  "wallet": zod.object({
+  "id": zod.string(),
+  "userId": zod.string(),
+  "balanceMinor": zod.int().describe('Wallet balance in minor currency units.'),
+  "currency": zod.enum(['ZAR']),
+  "createdAt": zod.int(),
+  "updatedAt": zod.int()
+}),
+  "transactions": zod.array(zod.object({
+  "id": zod.string(),
+  "type": zod.string(),
+  "amountMinor": zod.int(),
+  "currency": zod.string(),
+  "reference": zod.string().nullable(),
+  "description": zod.string().nullable(),
+  "createdAt": zod.int()
+})),
+  "creditedAmountMinor": zod.int().optional()
+})
+
+
+/**
+ * Atomically transfers value from the assigned driver's wallet to the rider. The driver must have sufficient wallet credit, and each ride can be credited once.
+ * @summary Credit cash change to the rider after a completed cash ride
+ */
+export const creditCashChangeToRiderWalletBodyTripIdMax = 128;
+
+export const creditCashChangeToRiderWalletBodyAmountMinorMin = 100;
+export const creditCashChangeToRiderWalletBodyAmountMinorMax = 50000;
+
+export const creditCashChangeToRiderWalletBodyNoteMax = 120;
+
+
+
+export const CreditCashChangeToRiderWalletBody = zod.object({
+  "tripId": zod.string().min(1).max(creditCashChangeToRiderWalletBodyTripIdMax),
+  "amountMinor": zod.int().min(creditCashChangeToRiderWalletBodyAmountMinorMin).max(creditCashChangeToRiderWalletBodyAmountMinorMax),
+  "note": zod.string().max(creditCashChangeToRiderWalletBodyNoteMax).optional()
+})
+
+export const CreditCashChangeToRiderWalletResponse = zod.object({
+  "wallet": zod.object({
+  "id": zod.string(),
+  "userId": zod.string(),
+  "balanceMinor": zod.int().describe('Wallet balance in minor currency units.'),
+  "currency": zod.enum(['ZAR']),
+  "createdAt": zod.int(),
+  "updatedAt": zod.int()
+}),
+  "transactions": zod.array(zod.object({
+  "id": zod.string(),
+  "type": zod.string(),
+  "amountMinor": zod.int(),
+  "currency": zod.string(),
+  "reference": zod.string().nullable(),
+  "description": zod.string().nullable(),
+  "createdAt": zod.int()
+})),
+  "creditedAmountMinor": zod.int()
+}).and(zod.object({
+  "riderWallet": zod.object({
+  "id": zod.string(),
+  "userId": zod.string(),
+  "balanceMinor": zod.int().describe('Wallet balance in minor currency units.'),
+  "currency": zod.enum(['ZAR']),
+  "createdAt": zod.int(),
+  "updatedAt": zod.int()
+}),
+  "creditedAmountMinor": zod.int(),
+  "tripId": zod.string()
+}))
+
+
+/**
+ * @summary Redeem a single-use Vhaya wallet voucher
+ */
+export const redeemWalletVoucherBodyCodeRegExp = new RegExp('^VHAYA-[A-F0-9]{8}-[A-F0-9]{8}$');
+
+
+export const RedeemWalletVoucherBody = zod.object({
+  "code": zod.string().regex(redeemWalletVoucherBodyCodeRegExp)
+})
+
+export const RedeemWalletVoucherResponse = zod.object({
+  "wallet": zod.object({
+  "id": zod.string(),
+  "userId": zod.string(),
+  "balanceMinor": zod.int().describe('Wallet balance in minor currency units.'),
+  "currency": zod.enum(['ZAR']),
+  "createdAt": zod.int(),
+  "updatedAt": zod.int()
+}),
+  "transactions": zod.array(zod.object({
+  "id": zod.string(),
+  "type": zod.string(),
+  "amountMinor": zod.int(),
+  "currency": zod.string(),
+  "reference": zod.string().nullable(),
+  "description": zod.string().nullable(),
+  "createdAt": zod.int()
+})),
+  "creditedAmountMinor": zod.int().optional()
+})
+
+
+/**
+ * @summary Start a Paystack wallet top-up
+ */
+
+
+
+export const InitializeWalletTopUpBody = zod.object({
+  "amountMinor": zod.int().min(1)
+})
+
+export const InitializeWalletTopUpResponse = zod.void()
+
+
+/**
+ * @summary Verify a wallet top-up with Paystack
+ */
+
+
+
+export const VerifyWalletTopUpParams = zod.object({
+  "reference": zod.coerce.string().min(1)
+})
+
+export const VerifyWalletTopUpResponse = zod.unknown()
+
+
+/**
+ * Recipients can be identified by account email or verified South African mobile number. The debit and credit are committed together.
+ * @summary Transfer wallet credit to another Vhaya user
+ */
+export const transferWalletCreditBodyRecipientMin = 5;
+export const transferWalletCreditBodyRecipientMax = 254;
+
+export const transferWalletCreditBodyAmountMinorMin = 500;
+
+export const transferWalletCreditBodyNoteMax = 120;
+
+
+
+export const TransferWalletCreditBody = zod.object({
+  "recipient": zod.string().min(transferWalletCreditBodyRecipientMin).max(transferWalletCreditBodyRecipientMax).describe('The Vhaya account email or verified South African mobile number.'),
+  "amountMinor": zod.int().min(transferWalletCreditBodyAmountMinorMin),
+  "note": zod.string().max(transferWalletCreditBodyNoteMax).optional()
+})
+
+export const TransferWalletCreditResponse = zod.object({
+  "wallet": zod.object({
+  "id": zod.string(),
+  "userId": zod.string(),
+  "balanceMinor": zod.int().describe('Wallet balance in minor currency units.'),
+  "currency": zod.enum(['ZAR']),
+  "createdAt": zod.int(),
+  "updatedAt": zod.int()
+}),
+  "transactions": zod.array(zod.object({
+  "id": zod.string(),
+  "type": zod.string(),
+  "amountMinor": zod.int(),
+  "currency": zod.string(),
+  "reference": zod.string().nullable(),
+  "description": zod.string().nullable(),
+  "createdAt": zod.int()
+})),
+  "creditedAmountMinor": zod.int().optional()
+}).and(zod.object({
+  "transfer": zod.object({
+  "reference": zod.string(),
+  "amountMinor": zod.int()
+})
+}))
+
+
+/**
+ * @summary List recently issued wallet vouchers
+ */
+export const GetAdminWalletVouchersResponse = zod.object({
+  "vouchers": zod.array(zod.object({
+  "id": zod.string(),
+  "codeSuffix": zod.string().describe('Last four characters of the stored code hash, not a redeemable voucher code.'),
+  "amountMinor": zod.int(),
+  "currency": zod.string(),
+  "status": zod.enum(['issued', 'redeemed', 'expired', 'revoked']),
+  "createdAt": zod.int(),
+  "expiresAt": zod.int().nullable(),
+  "redeemedAt": zod.int().nullable()
+}))
+})
+
+
+/**
+ * The generated code is returned only once. Only its hash is stored.
+ * @summary Issue a single-use wallet voucher
+ */
+export const issueAdminWalletVoucherBodyAmountMinorMin = 100;
+
+
+
+export const IssueAdminWalletVoucherBody = zod.object({
+  "amountMinor": zod.int().min(issueAdminWalletVoucherBodyAmountMinorMin),
+  "expiresAt": zod.int().optional().describe('Optional expiry time in Unix milliseconds.')
+})
+
+export const IssueAdminWalletVoucherResponse = zod.object({
+  "voucher": zod.object({
+  "id": zod.string(),
+  "code": zod.string().describe('One-time display of the redeemable voucher code.'),
+  "amountMinor": zod.int(),
+  "currency": zod.string(),
+  "status": zod.enum(['issued']),
+  "createdAt": zod.int(),
+  "expiresAt": zod.int().nullable()
+})
+})
+
+
+/**
+ * @summary Cancel an unused wallet voucher
+ */
+export const RevokeAdminWalletVoucherParams = zod.object({
+  "voucherId": zod.coerce.string()
+})
+
+export const RevokeAdminWalletVoucherResponse = zod.object({
+  "id": zod.string(),
+  "status": zod.enum(['revoked'])
 })
 
 
@@ -88,8 +511,13 @@ export const CreateRideRequestResponse = zod.object({
  * Permanently removes the profile and authentication identity. Some ride, payment, safety, and audit records may be retained in pseudonymized form for legitimate operational or legal reasons.
  * @summary Delete the authenticated rider or driver account
  */
+export const deleteOwnAccountBodyReasonMax = 500;
+
+
+
 export const DeleteOwnAccountBody = zod.object({
-  "confirmation": zod.enum(['DELETE'])
+  "confirmation": zod.enum(['DELETE']),
+  "reason": zod.string().max(deleteOwnAccountBodyReasonMax).optional()
 })
 
 export const DeleteOwnAccountResponse = zod.object({
@@ -322,6 +750,8 @@ export const SearchAdminPeopleResponse = zod.object({
   "completedRideCount": zod.int(),
   "lastRideAt": zod.coerce.date().nullable(),
   "driverProfile": zod.union([zod.object({
+  "contactPhone": zod.string().nullable(),
+  "city": zod.string().nullable(),
   "applicationStatus": zod.string(),
   "verificationStatus": zod.string(),
   "vehicle": zod.string().nullable(),
@@ -329,11 +759,13 @@ export const SearchAdminPeopleResponse = zod.object({
   "registration": zod.string().nullable(),
   "licenceExpiry": zod.string().nullable(),
   "operatingLicenceReference": zod.string().nullable(),
+  "gravelReady": zod.boolean(),
+  "documentsConsentAt": zod.int().nullable(),
   "isOnline": zod.boolean(),
   "staffNote": zod.string().nullable(),
-  "submittedAt": zod.coerce.date().nullable(),
-  "reviewedAt": zod.coerce.date().nullable(),
-  "updatedAt": zod.coerce.date()
+  "submittedAt": zod.int().nullable(),
+  "reviewedAt": zod.int().nullable(),
+  "updatedAt": zod.int()
 }),zod.null()]),
   "lastReviewOutcome": zod.union([zod.enum(['reviewed', 'needs_follow_up', 'approved', 'rejected']),zod.null()]),
   "lastReviewedAt": zod.coerce.date().nullable(),
@@ -367,6 +799,8 @@ export const GetAdminPersonResponse = zod.object({
   "completedRideCount": zod.int(),
   "lastRideAt": zod.coerce.date().nullable(),
   "driverProfile": zod.union([zod.object({
+  "contactPhone": zod.string().nullable(),
+  "city": zod.string().nullable(),
   "applicationStatus": zod.string(),
   "verificationStatus": zod.string(),
   "vehicle": zod.string().nullable(),
@@ -374,11 +808,13 @@ export const GetAdminPersonResponse = zod.object({
   "registration": zod.string().nullable(),
   "licenceExpiry": zod.string().nullable(),
   "operatingLicenceReference": zod.string().nullable(),
+  "gravelReady": zod.boolean(),
+  "documentsConsentAt": zod.int().nullable(),
   "isOnline": zod.boolean(),
   "staffNote": zod.string().nullable(),
-  "submittedAt": zod.coerce.date().nullable(),
-  "reviewedAt": zod.coerce.date().nullable(),
-  "updatedAt": zod.coerce.date()
+  "submittedAt": zod.int().nullable(),
+  "reviewedAt": zod.int().nullable(),
+  "updatedAt": zod.int()
 }),zod.null()]),
   "lastReviewOutcome": zod.union([zod.enum(['reviewed', 'needs_follow_up', 'approved', 'rejected']),zod.null()]),
   "lastReviewedAt": zod.coerce.date().nullable(),
@@ -437,6 +873,8 @@ export const UpdateAdminPersonRoleResponse = zod.object({
   "completedRideCount": zod.int(),
   "lastRideAt": zod.coerce.date().nullable(),
   "driverProfile": zod.union([zod.object({
+  "contactPhone": zod.string().nullable(),
+  "city": zod.string().nullable(),
   "applicationStatus": zod.string(),
   "verificationStatus": zod.string(),
   "vehicle": zod.string().nullable(),
@@ -444,11 +882,13 @@ export const UpdateAdminPersonRoleResponse = zod.object({
   "registration": zod.string().nullable(),
   "licenceExpiry": zod.string().nullable(),
   "operatingLicenceReference": zod.string().nullable(),
+  "gravelReady": zod.boolean(),
+  "documentsConsentAt": zod.int().nullable(),
   "isOnline": zod.boolean(),
   "staffNote": zod.string().nullable(),
-  "submittedAt": zod.coerce.date().nullable(),
-  "reviewedAt": zod.coerce.date().nullable(),
-  "updatedAt": zod.coerce.date()
+  "submittedAt": zod.int().nullable(),
+  "reviewedAt": zod.int().nullable(),
+  "updatedAt": zod.int()
 }),zod.null()]),
   "lastReviewOutcome": zod.union([zod.enum(['reviewed', 'needs_follow_up', 'approved', 'rejected']),zod.null()]),
   "lastReviewedAt": zod.coerce.date().nullable(),
@@ -472,6 +912,9 @@ export const GetAdminDriverApplicationsResponse = zod.object({
   "registration": zod.string().nullable(),
   "licenceExpiry": zod.string().nullable(),
   "operatingLicenceReference": zod.string().nullable(),
+  "contactPhone": zod.string().nullable(),
+  "city": zod.string().nullable(),
+  "gravelReady": zod.boolean(),
   "staffNote": zod.string().nullable(),
   "submittedAt": zod.int().nullable(),
   "reviewedAt": zod.int().nullable(),
@@ -534,6 +977,8 @@ export const CreateAdminReviewResponse = zod.object({
   "completedRideCount": zod.int(),
   "lastRideAt": zod.coerce.date().nullable(),
   "driverProfile": zod.union([zod.object({
+  "contactPhone": zod.string().nullable(),
+  "city": zod.string().nullable(),
   "applicationStatus": zod.string(),
   "verificationStatus": zod.string(),
   "vehicle": zod.string().nullable(),
@@ -541,11 +986,13 @@ export const CreateAdminReviewResponse = zod.object({
   "registration": zod.string().nullable(),
   "licenceExpiry": zod.string().nullable(),
   "operatingLicenceReference": zod.string().nullable(),
+  "gravelReady": zod.boolean(),
+  "documentsConsentAt": zod.int().nullable(),
   "isOnline": zod.boolean(),
   "staffNote": zod.string().nullable(),
-  "submittedAt": zod.coerce.date().nullable(),
-  "reviewedAt": zod.coerce.date().nullable(),
-  "updatedAt": zod.coerce.date()
+  "submittedAt": zod.int().nullable(),
+  "reviewedAt": zod.int().nullable(),
+  "updatedAt": zod.int()
 }),zod.null()]),
   "lastReviewOutcome": zod.union([zod.enum(['reviewed', 'needs_follow_up', 'approved', 'rejected']),zod.null()]),
   "lastReviewedAt": zod.coerce.date().nullable(),
@@ -1459,8 +1906,7 @@ export const GetSupportCasesResponse = zod.object({
   "message": zod.string(),
   "createdAt": zod.int()
 })).optional()
-})).optional(),
-  "required": zod.unknown().optional()
+}))
 })
 
 

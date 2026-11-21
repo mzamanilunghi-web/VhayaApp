@@ -64,12 +64,16 @@ function errorCode(error: unknown): string | undefined {
   return undefined;
 }
 
-export async function createSelfDeletionRequest(userId: string): Promise<string> {
+export async function createSelfDeletionRequest(
+  userId: string,
+  reason?: string,
+): Promise<string> {
   const id = randomUUID();
   await db.insert(accountDeletionRequests).values({
     id,
     userId,
     status: "requested",
+    ...(reason?.trim() ? { reason: reason.trim().slice(0, 500) } : {}),
   });
   return id;
 }

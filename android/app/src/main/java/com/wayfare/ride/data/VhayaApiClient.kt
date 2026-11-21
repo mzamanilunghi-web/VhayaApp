@@ -682,6 +682,7 @@ class VhayaApiClient(
     ): Result<AccountDeletionBackendStatus> = withContext(Dispatchers.IO) {
         runCatching {
             val payload = buildJsonObject {
+                put("confirmation", "DELETE")
                 if (!reason.isNullOrBlank()) {
                     put("reason", reason.trim().take(240))
                 }

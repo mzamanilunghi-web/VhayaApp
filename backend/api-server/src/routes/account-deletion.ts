@@ -57,7 +57,7 @@ router.delete("/account", async (req, res, next): Promise<void> => {
       return;
     }
 
-    const requestId = await createSelfDeletionRequest(userId);
+    const requestId = await createSelfDeletionRequest(userId, parsed.data.reason);
     try {
       const result = await completeAccountDeletion(requestId, {
         actorUserId: null,

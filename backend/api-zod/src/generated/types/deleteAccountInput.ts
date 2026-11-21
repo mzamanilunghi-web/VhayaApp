@@ -9,4 +9,6 @@ import type { DeleteAccountInputConfirmation } from './deleteAccountInputConfirm
 
 export interface DeleteAccountInput {
   confirmation: DeleteAccountInputConfirmation;
+  /** @maxLength 500 */
+  reason?: string;
 }

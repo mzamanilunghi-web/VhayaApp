@@ -123,8 +123,15 @@ class FrontendSimplificationTest {
                 }
                 "/api/account" -> {
                     if (method.equals("DELETE", ignoreCase = true)) {
-                        backendAccountDeleted.set(true)
-                        200 to """{"deleted":true}"""
+                        if (
+                            bodyText.contains("\"confirmation\":\"DELETE\"") &&
+                            bodyText.contains("\"reason\":\"No longer needed\"")
+                        ) {
+                            backendAccountDeleted.set(true)
+                            200 to """{"deleted":true}"""
+                        } else {
+                            400 to """{"error":"confirmation is required"}"""
+                        }
                     } else {
                         405 to """{"error":"method not allowed"}"""
                     }

@@ -13,4 +13,6 @@ export const CreateRideRequestCategory = {
   standard: 'standard',
   comfort: 'comfort',
   xl: 'xl',
+  bakkie: 'bakkie',
+  parcel: 'parcel',
 } as const;

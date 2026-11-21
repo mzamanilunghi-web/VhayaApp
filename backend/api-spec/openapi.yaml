@@ -20,6 +20,8 @@ tags:
     description: Authenticated driver operations
   - name: rides
     description: Authenticated rider and driver ride requests
+  - name: wallet
+    description: Authenticated Vhaya wallet operations
 paths:
   /rides:
     get:
@@ -41,7 +43,7 @@ paths:
       operationId: createRideRequest
       tags: [rides]
       summary: Create a rider ride request
-      description: The optional isReturnRequest flag identifies an explicit Return Request and is distinct from Wait & return. Omitted flags are returned as false for compatibility with older requests.
+      description: Optional booking details, including Return Request, family beneficiary, shared seats, gravel access, cash-change preference, and an offline idempotency reference, are preserved in ride records.
       security:
         - firebaseBearer: []
       requestBody:
@@ -65,6 +67,325 @@ paths:
           description: Only an eligible rider can create a request
         "409":
           description: The rider already has an active request
+  /driver/application:
+    patch:
+      operationId: saveDriverApplicationDraft
+      tags: [driver]
+      summary: Save a driver application draft
+      security:
+        - firebaseBearer: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DriverApplicationInput"
+      responses:
+        "200":
+          description: Draft saved
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DriverProfileEnvelope"
+        "400":
+          description: Driver application fields are invalid
+        "401":
+          description: Sign-in required
+        "403":
+          description: Only rider accounts can edit an application
+        "409":
+          description: Application is locked while staff review is active
+    post:
+      operationId: submitDriverApplication
+      tags: [driver]
+      summary: Submit a driver application for staff review
+      security:
+        - firebaseBearer: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DriverApplicationInput"
+      responses:
+        "201":
+          description: Application submitted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DriverProfileEnvelope"
+        "400":
+          description: Required application fields are invalid
+        "401":
+          description: Sign-in required
+        "403":
+          description: Only rider accounts can submit an application
+        "409":
+          description: Application is already submitted or approved
+  /driver/profile:
+    get:
+      operationId: getDriverProfile
+      tags: [driver]
+      summary: Get the authenticated driver's application and profile
+      security:
+        - firebaseBearer: []
+      responses:
+        "200":
+          description: Driver profile, if one exists
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DriverProfileEnvelope"
+        "401":
+          description: Sign-in required
+  /driver/profile/online:
+    patch:
+      operationId: setDriverOnlineStatus
+      tags: [driver]
+      summary: Set the authenticated driver's online status
+      security:
+        - firebaseBearer: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DriverOnlineStatusInput"
+      responses:
+        "200":
+          description: Updated online status
+        "401":
+          description: Sign-in required
+        "403":
+          description: Approved driver access is required
+  /wallet:
+    get:
+      operationId: getOwnWallet
+      tags: [wallet]
+      summary: Get the authenticated user's wallet and recent transactions
+      security:
+        - firebaseBearer: []
+      responses:
+        "200":
+          description: Wallet summary and recent transactions
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WalletEnvelope"
+        "401":
+          description: Sign-in required
+  /wallet/cash-change-credit:
+    post:
+      operationId: creditCashChangeToRiderWallet
+      tags: [wallet]
+      summary: Credit cash change to the rider after a completed cash ride
+      description: Atomically transfers value from the assigned driver's wallet to the rider. The driver must have sufficient wallet credit, and each ride can be credited once.
+      security:
+        - firebaseBearer: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CashChangeCreditInput"
+      responses:
+        "200":
+          description: Cash change credited; the wallet belongs to the calling driver
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CashChangeCreditResponse"
+        "400":
+          description: Trip or amount is invalid
+        "401":
+          description: Sign-in required
+        "403":
+          description: Only the assigned driver can make this credit
+        "404":
+          description: Ride not found
+        "409":
+          description: Ride is not an eligible cash trip or was already credited
+  /wallet/redeem-voucher:
+    post:
+      operationId: redeemWalletVoucher
+      tags: [wallet]
+      summary: Redeem a single-use Vhaya wallet voucher
+      security:
+        - firebaseBearer: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RedeemWalletVoucherInput"
+      responses:
+        "200":
+          description: Voucher value added to the wallet
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WalletEnvelope"
+        "400":
+          description: Voucher code is invalid
+        "401":
+          description: Sign-in required
+        "404":
+          description: Voucher was not found
+        "409":
+          description: Voucher is expired, cancelled, or already redeemed
+  /wallet/top-up:
+    post:
+      operationId: initializeWalletTopUp
+      tags: [wallet]
+      summary: Start a Paystack wallet top-up
+      security:
+        - firebaseBearer: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+                $ref: "#/components/schemas/WalletTopUpInput"
+      responses:
+        "201":
+          description: Paystack top-up initialized
+        "400":
+          description: Amount or verified email is invalid
+        "401":
+          description: Sign-in required
+        "502":
+          description: Payment provider could not initialize the top-up
+  /wallet/top-ups/{reference}/verify:
+    get:
+      operationId: verifyWalletTopUp
+      tags: [wallet]
+      summary: Verify a wallet top-up with Paystack
+      security:
+        - firebaseBearer: []
+      parameters:
+        - name: reference
+          in: path
+          required: true
+          schema:
+            type: string
+            minLength: 1
+      responses:
+        "200":
+          description: Top-up verified and wallet updated
+        "401":
+          description: Sign-in required
+        "404":
+          description: Top-up not found
+        "409":
+          description: Top-up did not succeed
+  /wallet/transfer:
+    post:
+      operationId: transferWalletCredit
+      tags: [wallet]
+      summary: Transfer wallet credit to another Vhaya user
+      description: Recipients can be identified by account email or verified South African mobile number. The debit and credit are committed together.
+      security:
+        - firebaseBearer: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/WalletTransferInput"
+      responses:
+        "200":
+          description: Credit transferred; returns the sender's updated wallet
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WalletTransferResponse"
+        "400":
+          description: Recipient or amount is invalid
+        "401":
+          description: Sign-in required
+        "404":
+          description: Recipient account not found
+        "409":
+          description: Insufficient balance or conflicting account state
+  /admin/wallet-vouchers:
+    get:
+      operationId: getAdminWalletVouchers
+      tags: [admin]
+      summary: List recently issued wallet vouchers
+      security:
+        - firebaseBearer: []
+      responses:
+        "200":
+          description: Voucher status without revealing voucher codes
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminWalletVouchersResponse"
+        "401":
+          description: Sign-in required
+        "403":
+          description: Operations admin access required
+    post:
+      operationId: issueAdminWalletVoucher
+      tags: [admin]
+      summary: Issue a single-use wallet voucher
+      description: The generated code is returned only once. Only its hash is stored.
+      security:
+        - firebaseBearer: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/IssueWalletVoucherInput"
+      responses:
+        "201":
+          description: Voucher issued; response contains the one-time code
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/IssueWalletVoucherResponse"
+        "400":
+          description: Voucher amount or expiry is invalid
+        "401":
+          description: Sign-in required
+        "403":
+          description: Operations admin access required
+  /admin/wallet-vouchers/{voucherId}/revoke:
+    patch:
+      operationId: revokeAdminWalletVoucher
+      tags: [admin]
+      summary: Cancel an unused wallet voucher
+      security:
+        - firebaseBearer: []
+      parameters:
+        - name: voucherId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Voucher cancelled
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: string
+                  status:
+                    type: string
+                    enum: [revoked]
+                required: [id, status]
+        "401":
+          description: Sign-in required
+        "403":
+          description: Operations admin access required
+        "404":
+          description: Voucher not found
+        "409":
+          description: Voucher was already redeemed or changed
   /account:
     delete:
       operationId: deleteOwnAccount
@@ -1371,14 +1692,7 @@ paths:
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  cases:
-                    type: array
-                    items:
-                      $ref: "#/components/schemas/SupportCase"
-                  required:
-                    - cases
+                $ref: "#/components/schemas/SupportCasesEnvelope"
         "401":
           description: Sign-in required
 components:
@@ -1394,6 +1708,9 @@ components:
         confirmation:
           type: string
           enum: [DELETE]
+        reason:
+          type: string
+          maxLength: 500
       required: [confirmation]
     PublicAccountDeletionRequestInput:
       type: object
@@ -1670,6 +1987,10 @@ components:
     DriverProfileSummary:
       type: object
       properties:
+        contactPhone:
+          type: [string, "null"]
+        city:
+          type: [string, "null"]
         applicationStatus:
           type: string
         verificationStatus:
@@ -1684,20 +2005,27 @@ components:
           type: [string, "null"]
         operatingLicenceReference:
           type: [string, "null"]
+        gravelReady:
+          type: boolean
+        documentsConsentAt:
+          type: [integer, "null"]
+          format: int64
         isOnline:
           type: boolean
         staffNote:
           type: [string, "null"]
         submittedAt:
-          type: [string, "null"]
-          format: date-time
+          type: [integer, "null"]
+          format: int64
         reviewedAt:
-          type: [string, "null"]
-          format: date-time
+          type: [integer, "null"]
+          format: int64
         updatedAt:
-          type: string
-          format: date-time
+          type: integer
+          format: int64
       required:
+        - contactPhone
+        - city
         - applicationStatus
         - verificationStatus
         - vehicle
@@ -1705,11 +2033,65 @@ components:
         - registration
         - licenceExpiry
         - operatingLicenceReference
+        - gravelReady
+        - documentsConsentAt
         - isOnline
         - staffNote
         - submittedAt
         - reviewedAt
         - updatedAt
+    DriverProfileEnvelope:
+      type: object
+      properties:
+        profile:
+          oneOf:
+            - $ref: "#/components/schemas/DriverProfileSummary"
+            - type: "null"
+      required: [profile]
+    DriverApplicationInput:
+      type: object
+      properties:
+        contactPhone:
+          type: string
+          maxLength: 25
+        city:
+          type: string
+          maxLength: 80
+        vehicle:
+          type: string
+          maxLength: 120
+        vehicleColor:
+          type: string
+          maxLength: 60
+        registration:
+          type: string
+          maxLength: 32
+        licenceExpiry:
+          type: string
+          maxLength: 32
+        operatingLicenceReference:
+          type: string
+          maxLength: 100
+        gravelReady:
+          type: boolean
+        documentsConsent:
+          type: boolean
+      additionalProperties: false
+    DriverOnlineStatusInput:
+      type: object
+      properties:
+        online:
+          type: boolean
+      required: [online]
+      additionalProperties: false
+    WalletTopUpInput:
+      type: object
+      properties:
+        amountMinor:
+          type: integer
+          minimum: 1
+      required: [amountMinor]
+      additionalProperties: false
     AdminPersonSummary:
       type: object
       properties:
@@ -1786,7 +2168,7 @@ components:
           maxLength: 300
         category:
           type: string
-          enum: [standard, comfort, xl]
+          enum: [standard, comfort, xl, bakkie, parcel]
         pricingMode:
           type: string
           enum: [estimate, offer]
@@ -1813,6 +2195,38 @@ components:
           type: boolean
           default: false
           description: Explicit Return Request for return-corridor matching; separate from Wait & return.
+        pickupNote:
+          type: string
+          maxLength: 140
+        cashChangeForZar:
+          type: integer
+          minimum: 50
+          maximum: 500
+          description: Requested cash note denomination; only valid for cash payment.
+        beneficiaryName:
+          type: string
+          maxLength: 80
+        beneficiaryPhone:
+          type: string
+          maxLength: 32
+        isSharedRide:
+          type: boolean
+          default: false
+        seatCount:
+          type: integer
+          minimum: 1
+          maximum: 4
+          default: 1
+        isReturnTrip:
+          type: boolean
+          default: false
+        includesGravelRoad:
+          type: boolean
+          default: false
+        clientRequestId:
+          type: string
+          maxLength: 128
+          description: Client-generated reference used to safely retry offline ride creation.
       required: [pickup, destination, category, pricingMode, route]
     RideFeedResponse:
       type: object
@@ -1870,6 +2284,24 @@ components:
           format: int64
         isReturnRequest:
           type: boolean
+        pickupNote:
+          type: [string, "null"]
+        cashChangeForZar:
+          type: [integer, "null"]
+        beneficiaryName:
+          type: [string, "null"]
+        beneficiaryPhone:
+          type: [string, "null"]
+        isSharedRide:
+          type: boolean
+        seatCount:
+          type: integer
+        isReturnTrip:
+          type: boolean
+        includesGravelRoad:
+          type: boolean
+        clientRequestId:
+          type: [string, "null"]
         offers:
           type: array
           items:
@@ -1890,7 +2322,208 @@ components:
         - paymentStatus
         - createdAt
         - isReturnRequest
+        - pickupNote
+        - cashChangeForZar
+        - beneficiaryName
+        - beneficiaryPhone
+        - isSharedRide
+        - seatCount
+        - isReturnTrip
+        - includesGravelRoad
+        - clientRequestId
         - offers
+    WalletSummary:
+      type: object
+      properties:
+        id:
+          type: string
+        userId:
+          type: string
+        balanceMinor:
+          type: integer
+          description: Wallet balance in minor currency units.
+        currency:
+          type: string
+          enum: [ZAR]
+        createdAt:
+          type: integer
+          format: int64
+        updatedAt:
+          type: integer
+          format: int64
+      required: [id, userId, balanceMinor, currency, createdAt, updatedAt]
+    WalletTransaction:
+      type: object
+      properties:
+        id:
+          type: string
+        type:
+          type: string
+        amountMinor:
+          type: integer
+        currency:
+          type: string
+        reference:
+          type: [string, "null"]
+        description:
+          type: [string, "null"]
+        createdAt:
+          type: integer
+          format: int64
+      required: [id, type, amountMinor, currency, reference, description, createdAt]
+    WalletEnvelope:
+      type: object
+      properties:
+        wallet:
+          $ref: "#/components/schemas/WalletSummary"
+        transactions:
+          type: array
+          items:
+            $ref: "#/components/schemas/WalletTransaction"
+        creditedAmountMinor:
+          type: integer
+      required: [wallet, transactions]
+    CashChangeCreditInput:
+      type: object
+      properties:
+        tripId:
+          type: string
+          minLength: 1
+          maxLength: 128
+        amountMinor:
+          type: integer
+          minimum: 100
+          maximum: 50000
+        note:
+          type: string
+          maxLength: 120
+      required: [tripId, amountMinor]
+    CashChangeCreditResponse:
+      allOf:
+        - $ref: "#/components/schemas/WalletEnvelope"
+        - type: object
+          properties:
+            riderWallet:
+              $ref: "#/components/schemas/WalletSummary"
+            creditedAmountMinor:
+              type: integer
+            tripId:
+              type: string
+          required: [riderWallet, creditedAmountMinor, tripId]
+    RedeemWalletVoucherInput:
+      type: object
+      properties:
+        code:
+          type: string
+          pattern: "^VHAYA-[A-F0-9]{8}-[A-F0-9]{8}$"
+      required: [code]
+    WalletTransferInput:
+      type: object
+      properties:
+        recipient:
+          type: string
+          minLength: 5
+          maxLength: 254
+          description: The Vhaya account email or verified South African mobile number.
+        amountMinor:
+          type: integer
+          minimum: 500
+        note:
+          type: string
+          maxLength: 120
+      required: [recipient, amountMinor]
+    WalletTransferResponse:
+      allOf:
+        - $ref: "#/components/schemas/WalletEnvelope"
+        - type: object
+          properties:
+            transfer:
+              type: object
+              properties:
+                reference:
+                  type: string
+                amountMinor:
+                  type: integer
+              required: [reference, amountMinor]
+          required: [transfer]
+    IssueWalletVoucherInput:
+      type: object
+      properties:
+        amountMinor:
+          type: integer
+          minimum: 100
+        expiresAt:
+          type: integer
+          format: int64
+          description: Optional expiry time in Unix milliseconds.
+      required: [amountMinor]
+    WalletVoucher:
+      type: object
+      properties:
+        id:
+          type: string
+        codeSuffix:
+          type: string
+          description: Last four characters of the stored code hash, not a redeemable voucher code.
+        amountMinor:
+          type: integer
+        currency:
+          type: string
+        status:
+          type: string
+          enum: [issued, redeemed, expired, revoked]
+        createdAt:
+          type: integer
+          format: int64
+        expiresAt:
+          type: [integer, "null"]
+          format: int64
+        redeemedAt:
+          type: [integer, "null"]
+          format: int64
+      required: [id, codeSuffix, amountMinor, currency, status, createdAt, expiresAt, redeemedAt]
+    AdminWalletVouchersResponse:
+      type: object
+      properties:
+        vouchers:
+          type: array
+          items:
+            $ref: "#/components/schemas/WalletVoucher"
+      required: [vouchers]
+    IssueWalletVoucherResponse:
+      type: object
+      properties:
+        voucher:
+          type: object
+          properties:
+            id:
+              type: string
+            code:
+              type: string
+              description: One-time display of the redeemable voucher code.
+            amountMinor:
+              type: integer
+            currency:
+              type: string
+            status:
+              type: string
+              enum: [issued]
+            createdAt:
+              type: integer
+              format: int64
+            expiresAt:
+              type: [integer, "null"]
+              format: int64
+          required: [id, code, amountMinor, currency, status, createdAt, expiresAt]
+      required: [voucher]
+    SupportCasesEnvelope:
+      type: object
+      properties:
+        cases:
+          type: array
+          items:
+            $ref: "#/components/schemas/SupportCase"
+      required: [cases]
     AdminRidesResponse:
       type: object
       properties:
@@ -2168,6 +2801,12 @@ components:
           type: [string, "null"]
         operatingLicenceReference:
           type: [string, "null"]
+        contactPhone:
+          type: [string, "null"]
+        city:
+          type: [string, "null"]
+        gravelReady:
+          type: boolean
         staffNote:
           type: [string, "null"]
         submittedAt:
@@ -2216,11 +2855,14 @@ components:
         - email
         - applicationStatus
         - verificationStatus
+        - contactPhone
+        - city
         - vehicle
         - vehicleColor
         - registration
         - licenceExpiry
         - operatingLicenceReference
+        - gravelReady
         - staffNote
         - submittedAt
         - reviewedAt

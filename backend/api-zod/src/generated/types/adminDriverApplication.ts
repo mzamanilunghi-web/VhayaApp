@@ -25,6 +25,11 @@ export interface AdminDriverApplication {
   /** @nullable */
   operatingLicenceReference: string | null;
   /** @nullable */
+  contactPhone: string | null;
+  /** @nullable */
+  city: string | null;
+  gravelReady: boolean;
+  /** @nullable */
   staffNote: string | null;
   /** @nullable */
   submittedAt: number | null;

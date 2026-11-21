@@ -7,6 +7,10 @@
  */
 
 export interface DriverProfileSummary {
+  /** @nullable */
+  contactPhone: string | null;
+  /** @nullable */
+  city: string | null;
   applicationStatus: string;
   verificationStatus: string;
   /** @nullable */
@@ -19,12 +23,15 @@ export interface DriverProfileSummary {
   licenceExpiry: string | null;
   /** @nullable */
   operatingLicenceReference: string | null;
+  gravelReady: boolean;
+  /** @nullable */
+  documentsConsentAt: bigint | null;
   isOnline: boolean;
   /** @nullable */
   staffNote: string | null;
   /** @nullable */
-  submittedAt: Date | null;
+  submittedAt: bigint | null;
   /** @nullable */
-  reviewedAt: Date | null;
-  updatedAt: Date;
+  reviewedAt: bigint | null;
+  updatedAt: bigint;
 }

@@ -61,6 +61,7 @@ export const wayfareUsers = pgTable("wayfare_users", {
   id: text("id").primaryKey(),
   displayName: text("display_name").notNull(),
   email: text("email"),
+  phoneNumber: text("phone_number"),
   role: text("role").notNull().default("rider"),
   devVerified: boolean("dev_verified").notNull().default(false),
   isSuspended: boolean("is_suspended").notNull().default(false),
@@ -69,7 +70,9 @@ export const wayfareUsers = pgTable("wayfare_users", {
   suspendedBy: text("suspended_by"),
   deletedAt: timestamp("deleted_at", { withTimezone: true }),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
-});
+}, (table) => [
+  uniqueIndex("wayfare_users_phone_number_idx").on(table.phoneNumber),
+]);
 
 export const authSessions = pgTable(
   "auth_sessions",
@@ -100,6 +103,7 @@ export const driverProfiles = pgTable("driver_profiles", {
   registration: text("registration"),
   licenceExpiry: text("licence_expiry"),
   operatingLicenceReference: text("operating_licence_reference"),
+  gravelReady: boolean("gravel_ready").notNull().default(false),
   documentsConsentAt: timestamp("documents_consent_at", { withTimezone: true }),
   isOnline: boolean("is_online").notNull().default(false),
   locationLatitude: doublePrecision("location_latitude"),
@@ -606,6 +610,42 @@ export const walletTopups = pgTable(
   (table) => [
     uniqueIndex("wallet_topups_reference_idx").on(table.reference),
     index("wallet_topups_user_created_idx").on(table.userId, table.createdAt),
+  ],
+);
+
+export const walletVouchers = pgTable(
+  "wallet_vouchers",
+  {
+    id: text("id").primaryKey(),
+    codeHash: text("code_hash").notNull(),
+    amountMinor: integer("amount_minor").notNull(),
+    currency: text("currency").notNull().default("ZAR"),
+    status: text("status").notNull().default("issued"),
+    createdBy: text("created_by").references(() => wayfareUsers.id, {
+      onDelete: "set null",
+    }),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    expiresAt: timestamp("expires_at", { withTimezone: true }),
+    redeemedBy: text("redeemed_by").references(() => wayfareUsers.id, {
+      onDelete: "set null",
+    }),
+    redeemedAt: timestamp("redeemed_at", { withTimezone: true }),
+  },
+  (table) => [
+    uniqueIndex("wallet_vouchers_code_hash_idx").on(table.codeHash),
+    index("wallet_vouchers_status_created_idx").on(table.status, table.createdAt),
+    index("wallet_vouchers_redeemed_by_idx").on(table.redeemedBy, table.redeemedAt),
+    check("wallet_vouchers_amount_check", sql`${table.amountMinor} > 0`),
+    check(
+      "wallet_vouchers_status_check",
+      sql`${table.status} in ('issued', 'redeemed', 'revoked')`,
+    ),
+    check(
+      "wallet_vouchers_redeemed_fields_check",
+      sql`(${table.status} = 'redeemed' and ${table.redeemedBy} is not null and ${table.redeemedAt} is not null) or (${table.status} <> 'redeemed' and ${table.redeemedBy} is null and ${table.redeemedAt} is null)`,
+    ),
   ],
 );
 export type ConversationType =

@@ -7,7 +7,6 @@
  */
 import type { SupportCase } from './supportCase';
 
-export type GetSupportCases200 = {
-  cases?: SupportCase[];
-  required?: unknown;
-};
+export interface SupportCasesEnvelope {
+  cases: SupportCase[];
+}

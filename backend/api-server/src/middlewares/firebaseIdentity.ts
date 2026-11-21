@@ -103,6 +103,9 @@ export const attachFirebaseIdentity: RequestHandler = (req, res, next) => {
             id: profile.uid,
             displayName: profile.displayName,
             email: profile.email,
+            ...(typeof decoded.phone_number === "string" && decoded.phone_number.trim()
+              ? { phoneNumber: decoded.phone_number.trim() }
+              : {}),
             role: profile.role,
             devVerified: true,
             updatedAt: new Date(),
@@ -112,6 +115,9 @@ export const attachFirebaseIdentity: RequestHandler = (req, res, next) => {
             set: {
               displayName: profile.displayName,
               email: profile.email,
+              ...(typeof decoded.phone_number === "string" && decoded.phone_number.trim()
+                ? { phoneNumber: decoded.phone_number.trim() }
+                : {}),
               role: profile.role,
               devVerified: true,
               updatedAt: new Date(),

@@ -1,5 +1,5 @@
 import { randomInt, randomUUID } from "node:crypto";
-import { and, desc, eq, inArray, notInArray, or, sql } from "drizzle-orm";
+import { and, desc, eq, gte, inArray, notInArray, or, sql } from "drizzle-orm";
 import { Router, type IRouter } from "express";
 import { db } from "@workspace/db";
 import {
@@ -36,10 +36,11 @@ type WayfareTrip = Record<string, unknown> & {
   pickup: string;
   destination: string;
   isReturnRequest?: boolean;
+  clientRequestId?: string;
 };
 
 const router: IRouter = Router();
-const rideCategories = new Set(["standard", "comfort", "xl"]);
+const rideCategories = new Set(["standard", "comfort", "xl", "bakkie", "parcel"]);
 const terminalStatuses = new Set(["completed", "cancelled", "unfulfilled"]);
 const MIN_RIDE_DURATION_SECONDS = 5 * 60;
 const ARRIVAL_RADIUS_METERS = 150;
@@ -49,6 +50,21 @@ const riderCancellationFeePercent = 0;
 
 function safeTripData(value: Record<string, unknown>): WayfareTrip {
   return value as WayfareTrip;
+}
+
+function optionalTextField(
+  body: Record<string, unknown>,
+  key: string,
+  maxLength: number,
+): { valid: boolean; value: string | null } {
+  const raw = body[key];
+  if (raw === undefined || raw === null) return { valid: true, value: null };
+  if (typeof raw !== "string") return { valid: false, value: null };
+  const value = raw.trim();
+  return {
+    valid: value.length <= maxLength,
+    value: value || null,
+  };
 }
 
 function validCoordinates(value: unknown) {
@@ -248,6 +264,7 @@ function driverSummary(
     vehicle: profile.vehicle ?? "Vehicle details pending",
     vehicleColor: profile.vehicleColor ?? "",
     registration: profile.registration ?? "",
+    gravelReady: profile.gravelReady,
     fare,
     verificationStatus: "approved",
   };
@@ -408,6 +425,60 @@ router.post("/rides", async (req, res, next) => {
       return res.status(400).json({ error: "Choose cash, wallet, or card payment." });
     }
     const paymentMethod = rawPaymentMethod as "card" | "cash" | "wallet";
+    const pickupNote = optionalTextField(body, "pickupNote", 140);
+    const beneficiaryName = optionalTextField(body, "beneficiaryName", 80);
+    const beneficiaryPhone = optionalTextField(body, "beneficiaryPhone", 32);
+    const booleanFields = [
+      "isSharedRide",
+      "isReturnTrip",
+      "includesGravelRoad",
+    ] as const;
+    if (
+      !pickupNote.valid ||
+      !beneficiaryName.valid ||
+      !beneficiaryPhone.valid ||
+      booleanFields.some(
+        (key) => body[key] !== undefined && typeof body[key] !== "boolean",
+      )
+    ) {
+      return res.status(400).json({ error: "Some optional ride details are invalid." });
+    }
+    const cashChangeForZar =
+      body.cashChangeForZar === undefined || body.cashChangeForZar === null
+        ? null
+        : body.cashChangeForZar;
+    if (
+      cashChangeForZar !== null &&
+      (typeof cashChangeForZar !== "number" ||
+        !Number.isInteger(cashChangeForZar) ||
+        cashChangeForZar < 50 ||
+        cashChangeForZar > 500 ||
+        paymentMethod !== "cash")
+    ) {
+      return res.status(400).json({
+        error: "Cash change can be selected only for cash rides, from R 50 to R 500.",
+      });
+    }
+    const isSharedRide = body.isSharedRide === true;
+    const seatCount = body.seatCount === undefined ? 1 : body.seatCount;
+    if (
+      typeof seatCount !== "number" ||
+      !Number.isInteger(seatCount) ||
+      seatCount < 1 ||
+      seatCount > 4 ||
+      (!isSharedRide && seatCount !== 1)
+    ) {
+      return res.status(400).json({ error: "Choose between one and four shared seats." });
+    }
+    const clientRequestId =
+      typeof body.clientRequestId === "string"
+        ? body.clientRequestId.trim()
+        : body.clientRequestId === undefined
+          ? null
+          : "";
+    if (clientRequestId !== null && (!clientRequestId || clientRequestId.length > 128)) {
+      return res.status(400).json({ error: "The ride request reference is invalid." });
+    }
     const trip: WayfareTrip = {
       id,
       riderId: userId,
@@ -421,13 +492,23 @@ router.post("/rides", async (req, res, next) => {
       createdAt,
       paymentMethod,
       paymentStatus: "none",
+      pickupNote: pickupNote.value,
+      cashChangeForZar,
+      beneficiaryName: beneficiaryName.value,
+      beneficiaryPhone: beneficiaryPhone.value,
+      isSharedRide,
+      seatCount: isSharedRide ? seatCount : 1,
+      isReturnTrip: body.isReturnTrip === true,
       isReturnRequest,
+      includesGravelRoad: body.includesGravelRoad === true,
+      ...(clientRequestId ? { clientRequestId } : {}),
       ...(pickupAt ? { pickupAt: pickupAt.getTime() } : {}),
       pickupCoordinates: route.originCoordinates,
       destinationCoordinates: route.destinationCoordinates,
       route: routeForTrip,
     };
 
+    let duplicateRequest: typeof rideRequests.$inferSelect | undefined;
     await db.transaction(async (tx) => {
       // Serialize concurrent requests from this rider before checking active rides.
       await tx
@@ -435,6 +516,25 @@ router.post("/rides", async (req, res, next) => {
         .from(wayfareUsers)
         .where(eq(wayfareUsers.id, userId))
         .for("update");
+      if (clientRequestId) {
+        const duplicates = await tx
+          .select()
+          .from(rideRequests)
+          .where(
+            and(
+              eq(rideRequests.riderId, userId),
+              sql`${rideRequests.tripData}->>'clientRequestId' = ${clientRequestId}`,
+              gte(rideRequests.createdAt, new Date(Date.now() - 24 * 60 * 60 * 1000)),
+            ),
+          )
+          .orderBy(desc(rideRequests.createdAt))
+          .limit(1)
+          .for("update");
+        if (duplicates[0]) {
+          duplicateRequest = duplicates[0];
+          return;
+        }
+      }
       const activeRequests = await tx
         .select({ id: rideRequests.id })
         .from(rideRequests)
@@ -475,6 +575,10 @@ router.post("/rides", async (req, res, next) => {
         details: { market: "Vhaya", launchPolicyStatus: "active" },
       });
     });
+    if (duplicateRequest) {
+      const duplicateTrip = await tripWithOffers(duplicateRequest, role, userId);
+      return res.status(200).json({ trip: duplicateTrip });
+    }
     return res.status(201).json({ trip: { ...trip, offers: [] } });
   } catch (error) {
     const status =
@@ -1342,18 +1446,29 @@ router.patch("/driver/application", async (req, res, next) => {
     }
 
     const body = recordBody(req.body);
-    const optionalText = (value: unknown): string | null | undefined => {
-      if (value === undefined || value === null) return null;
-      if (typeof value !== "string") return undefined;
-      return value.trim() || null;
-    };
-    const contactPhone = optionalText(body.contactPhone);
-    const city = optionalText(body.city);
+    const contactPhone = optionalTextField(body, "contactPhone", 25);
+    const city = optionalTextField(body, "city", 80);
+    const vehicle = optionalTextField(body, "vehicle", 120);
+    const vehicleColor = optionalTextField(body, "vehicleColor", 60);
+    const registration = optionalTextField(body, "registration", 32);
+    const licenceExpiry = optionalTextField(body, "licenceExpiry", 32);
+    const operatingLicenceReference = optionalTextField(
+      body,
+      "operatingLicenceReference",
+      100,
+    );
+    const gravelReady = body.gravelReady === true;
     if (
-      contactPhone === undefined ||
-      city === undefined ||
-      (contactPhone !== null && contactPhone.length > 25) ||
-      (city !== null && city.length > 80)
+      !contactPhone.valid ||
+      !city.valid ||
+      !vehicle.valid ||
+      !vehicleColor.valid ||
+      !registration.valid ||
+      !licenceExpiry.valid ||
+      !operatingLicenceReference.valid ||
+      (body.gravelReady !== undefined && typeof body.gravelReady !== "boolean") ||
+      (body.documentsConsent !== undefined &&
+        typeof body.documentsConsent !== "boolean")
     ) {
       return res.status(400).json({
         error: "The driver application details are invalid.",
@@ -1377,8 +1492,16 @@ router.patch("/driver/application", async (req, res, next) => {
         userId,
         applicationStatus: "draft",
         verificationStatus: "unverified",
-        contactPhone: contactPhone ?? null,
-        city: city ?? null,
+        contactPhone: contactPhone.value,
+        city: city.value,
+        vehicle: vehicle.value,
+        vehicleColor: vehicleColor.value,
+        registration: registration.value,
+        licenceExpiry: licenceExpiry.value,
+        operatingLicenceReference: operatingLicenceReference.value,
+        gravelReady,
+        documentsConsentAt:
+          body.documentsConsent === true ? now : null,
         isOnline: false,
         locationLatitude: null,
         locationLongitude: null,
@@ -1390,8 +1513,16 @@ router.patch("/driver/application", async (req, res, next) => {
         set: {
           applicationStatus: "draft",
           verificationStatus: "unverified",
-          contactPhone: contactPhone ?? null,
-          city: city ?? null,
+          contactPhone: contactPhone.value,
+          city: city.value,
+          vehicle: vehicle.value,
+          vehicleColor: vehicleColor.value,
+          registration: registration.value,
+          licenceExpiry: licenceExpiry.value,
+          operatingLicenceReference: operatingLicenceReference.value,
+          gravelReady,
+          documentsConsentAt:
+            body.documentsConsent === true ? now : null,
           isOnline: false,
           locationLatitude: null,
           locationLongitude: null,
@@ -1422,21 +1553,33 @@ router.post("/driver/application", async (req, res, next) => {
     }
 
     const body = recordBody(req.body);
-    const optionalText = (value: unknown): string | null | undefined => {
-      if (value === undefined || value === null) return null;
-      if (typeof value !== "string") return undefined;
-      return value.trim() || null;
-    };
-    const contactPhone = optionalText(body.contactPhone);
-    const city = optionalText(body.city);
+    const contactPhone = optionalTextField(body, "contactPhone", 25);
+    const city = optionalTextField(body, "city", 80);
+    const vehicle = optionalTextField(body, "vehicle", 120);
+    const vehicleColor = optionalTextField(body, "vehicleColor", 60);
+    const registration = optionalTextField(body, "registration", 32);
+    const licenceExpiry = optionalTextField(body, "licenceExpiry", 32);
+    const operatingLicenceReference = optionalTextField(
+      body,
+      "operatingLicenceReference",
+      100,
+    );
+    const gravelReady = body.gravelReady === true;
 
     if (
-      contactPhone === undefined ||
-      city === undefined ||
-      contactPhone === null ||
-      !/^\+?[0-9()\s-]{7,25}$/.test(contactPhone) ||
-      city === null ||
-      city.length > 80
+      !contactPhone.valid ||
+      !city.valid ||
+      !vehicle.valid ||
+      !vehicleColor.valid ||
+      !registration.valid ||
+      !licenceExpiry.valid ||
+      !operatingLicenceReference.valid ||
+      (body.gravelReady !== undefined && typeof body.gravelReady !== "boolean") ||
+      (body.documentsConsent !== undefined &&
+        typeof body.documentsConsent !== "boolean") ||
+      !contactPhone.value ||
+      !/^\+?[0-9()\s-]{7,25}$/.test(contactPhone.value) ||
+      !city.value
     ) {
       return res.status(400).json({
         error: "The driver application details are invalid.",
@@ -1463,8 +1606,16 @@ router.post("/driver/application", async (req, res, next) => {
         userId,
         applicationStatus: "submitted",
         verificationStatus: "pending",
-        contactPhone,
-        city,
+        contactPhone: contactPhone.value,
+        city: city.value,
+        vehicle: vehicle.value,
+        vehicleColor: vehicleColor.value,
+        registration: registration.value,
+        licenceExpiry: licenceExpiry.value,
+        operatingLicenceReference: operatingLicenceReference.value,
+        gravelReady,
+        documentsConsentAt:
+          body.documentsConsent === true ? new Date() : null,
         isOnline: false,
         locationLatitude: null,
         locationLongitude: null,
@@ -1479,8 +1630,16 @@ router.post("/driver/application", async (req, res, next) => {
         set: {
           applicationStatus: "submitted",
           verificationStatus: "pending",
-          contactPhone,
-          city,
+          contactPhone: contactPhone.value,
+          city: city.value,
+          vehicle: vehicle.value,
+          vehicleColor: vehicleColor.value,
+          registration: registration.value,
+          licenceExpiry: licenceExpiry.value,
+          operatingLicenceReference: operatingLicenceReference.value,
+          gravelReady,
+          documentsConsentAt:
+            body.documentsConsent === true ? new Date() : null,
           isOnline: false,
           locationLatitude: null,
           locationLongitude: null,
