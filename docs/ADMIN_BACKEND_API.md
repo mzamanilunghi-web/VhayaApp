@@ -2,7 +2,7 @@
 
 This guide documents the API currently available to a separate Vhaya admin app.
 It is based on the running API implementation; the OpenAPI file at
-`lib/api-spec/openapi.yaml` currently describes only part of the admin API.
+`backend/api-spec/openapi.yaml` currently describes only part of the admin API.
 
 ## Base URL
 
@@ -624,10 +624,10 @@ according to the fact that actual transfer settlement happens outside this API.
 
 ## Related source-of-truth files
 
-- `artifacts/api-server/src/routes/admin.ts` — primary admin operations
-- `artifacts/api-server/src/routes/payments.ts` — admin refund request
-- `artifacts/api-server/src/routes/wallets.ts` — wallet listing
-- `artifacts/api-server/src/middlewares/firebaseIdentity.ts` — Firebase and
+- `backend/api-server/src/routes/admin.ts` — primary admin operations
+- `backend/api-server/src/routes/payments.ts` — admin refund request
+- `backend/api-server/src/routes/wallets.ts` — wallet listing
+- `backend/api-server/src/middlewares/firebaseIdentity.ts` — Firebase and
   Vhaya session authentication
-- `artifacts/api-server/src/middlewares/wayfareRoles.ts` — role lookup
-- `lib/api-spec/openapi.yaml` — partial OpenAPI contract
+- `backend/api-server/src/middlewares/wayfareRoles.ts` — role lookup
+- `backend/api-spec/openapi.yaml` — partial OpenAPI contract

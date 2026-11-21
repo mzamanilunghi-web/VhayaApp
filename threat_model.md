@@ -35,10 +35,10 @@ private Replit App Storage bucket and are never served through public URLs.
 
 ## Scan Anchors
 
-- Production API entry point: `artifacts/api-server/src/app.ts`.
-- Highest-risk routes: `artifacts/api-server/src/routes/rides.ts` and
-  `artifacts/api-server/src/routes/admin.ts`.
-- Identity and role checks: `artifacts/api-server/src/middlewares/`.
+- Production API entry point: `backend/api-server/src/app.ts`.
+- Highest-risk routes: `backend/api-server/src/routes/rides.ts` and
+  `backend/api-server/src/routes/admin.ts`.
+- Identity and role checks: `backend/api-server/src/middlewares/`.
 - Generated build output and `artifacts/mockup-sandbox/` are not production
   runtime sources.
 

@@ -152,8 +152,8 @@ South African source pages:
 
 ### 8. Maps provider abstraction (plan: Workstream 1 / Phase 1)
 
-- [x] Replace direct public Nominatim + Project OSRM usage with a server-side `MapsProvider` abstraction (`artifacts/api-server/src/lib/maps/index.ts`) so vendors can be replaced independently.
-- [x] Implement the `OpenStreetMapProvider` (`artifacts/api-server/src/lib/maps/openstreetmap.ts`) wrapping places search, geocoding, reverse geocoding, and routing with bounded retries, jitter, circuit breaker, timeouts, and provider health checks.
+- [x] Replace direct public Nominatim + Project OSRM usage with a server-side `MapsProvider` abstraction (`backend/api-server/src/lib/maps/index.ts`) so vendors can be replaced independently.
+- [x] Implement the `OpenStreetMapProvider` (`backend/api-server/src/lib/maps/openstreetmap.ts`) wrapping places search, geocoding, reverse geocoding, and routing with bounded retries, jitter, circuit breaker, timeouts, and provider health checks.
 - [x] Wire `POST /places/search` and `POST /places/reverse` (`routes/places-search.ts`) and `POST /routes/preview` (`routes/routes-preview.ts`) through `getMapsProvider()`; provider selection via `MAPS_PROVIDER`, credentials server-side only.
 - [x] Loosened `routeQuote.verifyRouteQuote` provider check to any non-empty provider string so signed route quotes are vendor-agnostic while keeping HMAC tamper protection.
 - [x] `pnpm typecheck` for `@workspace/api-server` passes.

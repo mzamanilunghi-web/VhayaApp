@@ -4,6 +4,9 @@
 # No need to store the pnpm store twice.
 .local
 
+# The Android client is stored in this repository but is built separately.
+android/
+
 # Local service-account credentials must not be bundled into deployments.
 .env
 .env.*

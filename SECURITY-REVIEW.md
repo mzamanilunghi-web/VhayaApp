@@ -6,7 +6,7 @@
 
 | # | Severity | File | Lines | Vulnerability | Confidence |
 |---|----------|------|-------|---------------|------------|
-| 1 | 🟡 MEDIUM | `artifacts/api-server/src/routes/wallets.ts` | 91-108 | The wallet top-up endpoint accepts and forwards a caller-provided `callbackUrl` to Paystack. This can redirect users to an attacker-controlled URL after payment initiation. | 8/10 |
+| 1 | 🟡 MEDIUM | `backend/api-server/src/routes/wallets.ts` | 91-108 | The wallet top-up endpoint accepts and forwards a caller-provided `callbackUrl` to Paystack. This can redirect users to an attacker-controlled URL after payment initiation. | 8/10 |
 
 ### Recommended remediation
 

@@ -7,6 +7,7 @@ A ride-service backend with Firebase identity, PostgreSQL operations data, ride 
 - `pnpm --filter @workspace/api-server run dev` — run the shared API used by Wayfare on the configured port
 - `pnpm run typecheck` — typecheck the workspace
 - The workspace-root `.env` is loaded by the API development server.
+- Android and backend source are kept in separate folders and are not launched or built together.
 
 ## Stack
 
@@ -15,9 +16,10 @@ A ride-service backend with Firebase identity, PostgreSQL operations data, ride 
 
 ## Where things live
 
-- `artifacts/api-server/src/middlewares/firebaseIdentity.ts` — Firebase token verification and user provisioning
-- `artifacts/api-server/src/routes/` — authenticated ride, route, and payment APIs
-- `lib/db/src/schema/index.ts` — shared PostgreSQL schema
+- `backend/api-server/src/middlewares/firebaseIdentity.ts` — Firebase token verification and user provisioning
+- `backend/api-server/src/routes/` — authenticated ride, route, and payment APIs
+- `backend/db/src/schema/index.ts` — shared PostgreSQL schema
+- `backend/api-spec/openapi.yaml` — API contract; the Android app belongs in `android/` and connects over HTTP
 
 ## Architecture decisions
 
@@ -33,6 +35,8 @@ A ride-service backend with Firebase identity, PostgreSQL operations data, ride 
 - Paystack checkout requires a verified account email. Development defaults to mock payment outcomes; driver settlements and refunds are not connected.
 
 ## Product
+
+Backend source and backend-only workspace packages live under `backend/`. The Android app has its own source/build environment under `android/`; it does not import backend packages or run as part of the backend service.
 
 The API supports immediate and scheduled ride requests, eligible cancellations, trip PINs, route previews, rider and driver trip states, driver-interest submissions, document-compliance tracking, support cases, payment visibility, and external payout recording/reconciliation. Driver dispatch and live offers remain unavailable in this preview.
 

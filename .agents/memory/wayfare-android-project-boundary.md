@@ -3,8 +3,8 @@ name: Wayfare Android project boundary
 description: Which project owns the Android rider app and how it connects to this backend.
 ---
 
-The user confirmed that Wayfare has a working Android companion app maintained in a separate project. Treat the Android implementation as existing; do not ask to import its source as a prerequisite for backend or admin work.
+Wayfare's backend and Android client should live in the same repository but remain separate projects with separate build and runtime environments. Put backend source and server-side packages under `backend/`; keep Android source under `android/`. The Android client communicates with the backend through its HTTP API and must not import backend packages or run with the backend service.
 
-**Why:** the user said the Android app already works and accompanies this Wayfare app; the separate-project boundary describes source ownership, not a missing client.
+**Why:** the user wants both codebases in one repository for convenience, without mixing their environments or runtime.
 
-**How to apply:** keep backend and admin work here, leave Android UI/build changes in its existing project, and verify compatibility through shared API behavior. When adding a contract, check whether the working client uses it before calling the client missing or complete.
+**How to apply:** keep Android out of the pnpm workspace and backend deployment; use the API contract for integration. Android source has not yet been copied into this repository, so do not imply that it has.
