@@ -2070,17 +2070,31 @@ class VhayaApiClient(
         }
     }
 
-    suspend fun updateAdminPayoutBatchStatus(
+    suspend fun approveAdminPayoutBatch(
         baseUrl: String,
         token: String,
-        batchId: String,
-        status: String
+        batchId: String
     ): Result<Unit> = withContext(Dispatchers.IO) {
         runCatching {
-            val payload = buildJsonObject { put("status", status) }.toString()
             val (code, raw) = executeRequest(
-                "${cleanUrl(baseUrl)}/api/admin/payouts/batches/${enc(batchId)}",
+                "${cleanUrl(baseUrl)}/api/admin/payouts/batches/${enc(batchId)}/approve",
                 method = "PATCH",
+                bearerToken = token
+            )
+            ensureSuccess(code, raw)
+        }
+    }
+
+    suspend fun recordExternalPaymentForAdminPayoutBatch(
+        baseUrl: String,
+        token: String,
+        batchId: String
+    ): Result<Unit> = withContext(Dispatchers.IO) {
+        runCatching {
+            val payload = buildJsonObject { put("confirmed", true) }.toString()
+            val (code, raw) = executeRequest(
+                "${cleanUrl(baseUrl)}/api/admin/payouts/batches/${enc(batchId)}/external-payment",
+                method = "POST",
                 body = payload,
                 bearerToken = token
             )

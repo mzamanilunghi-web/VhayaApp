@@ -3646,13 +3646,26 @@ class WayfareViewModel(
         }
     }
 
-    fun updatePayoutBatchStatus(batchId: String, status: String) {
+    fun approvePayoutBatch(batchId: String) {
         if (!beginBusy("admin_action")) return
         viewModelScope.launch {
             try {
-                repository.updatePayoutBatchStatus(batchId, status)
-                    .onSuccess { toast("Batch marked $status") }
-                    .onFailure { reportActionFailure(it, "Could not update batch status") }
+                repository.approvePayoutBatch(batchId)
+                    .onSuccess { toast("Payout batch approved") }
+                    .onFailure { reportActionFailure(it, "Could not approve payout batch") }
+            } finally {
+                endBusy("admin_action")
+            }
+        }
+    }
+
+    fun recordExternalPaymentForPayoutBatch(batchId: String) {
+        if (!beginBusy("admin_action")) return
+        viewModelScope.launch {
+            try {
+                repository.recordExternalPaymentForPayoutBatch(batchId)
+                    .onSuccess { toast("External payout payment recorded") }
+                    .onFailure { reportActionFailure(it, "Could not record external payment") }
             } finally {
                 endBusy("admin_action")
             }

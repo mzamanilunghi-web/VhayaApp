@@ -33,6 +33,7 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.booleanOrNull
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.doubleOrNull
@@ -76,6 +77,7 @@ class VhayaEndToEndRobolectricTest {
     private val recordedRequests = CopyOnWriteArrayList<Pair<String, String>>()
     private val recordedActionBodies = CopyOnWriteArrayList<String>()
     private val recordedLocationUpdates = CopyOnWriteArrayList<String>()
+    private val recordedPayoutBatchActionBodies = CopyOnWriteArrayList<String>()
     private var nextTripSeq = 1
     private var nextCaseSeq = 100L
 
@@ -367,9 +369,38 @@ class VhayaEndToEndRobolectricTest {
             path == "/api/admin/support-cases" && method == "GET" -> respond(200, """{"cases":[]}""")
             path == "/api/admin/payouts" && method == "GET" -> respond(200, """{"payouts":[]}""")
             path == "/api/admin/payouts/batches" && method == "GET" -> respond(200, """{"batches":[]}""")
+            path == "/api/admin/payouts/batches/batch-1/approve" && method == "PATCH" -> {
+                respond(200, """{"batch":{"id":"batch-1","status":"submitted"}}""")
+            }
+            path == "/api/admin/payouts/batches/batch-1/external-payment" && method == "POST" -> {
+                recordedPayoutBatchActionBodies += body
+                respond(200, """{"batch":{"id":"batch-1","status":"paid"}}""")
+            }
 
             else -> respond(404, """{"error":"Unhandled route $method $path"}""")
         }
+    }
+
+    @Test
+    fun `admin payout batch actions use supported guarded endpoints`() = runBlocking {
+        val client = VhayaApiClient()
+        val baseUrl = "http://127.0.0.1:$serverPort"
+
+        client.approveAdminPayoutBatch(baseUrl, "admin-token", "batch-1").getOrThrow()
+        client.recordExternalPaymentForAdminPayoutBatch(baseUrl, "admin-token", "batch-1").getOrThrow()
+
+        assertTrue(
+            recordedRequests.contains(
+                "PATCH" to "/api/admin/payouts/batches/batch-1/approve"
+            )
+        )
+        assertTrue(
+            recordedRequests.contains(
+                "POST" to "/api/admin/payouts/batches/batch-1/external-payment"
+            )
+        )
+        val body = json.parseToJsonElement(recordedPayoutBatchActionBodies.single()).jsonObject
+        assertEquals(true, body["confirmed"]?.jsonPrimitive?.booleanOrNull)
     }
 
     @Test

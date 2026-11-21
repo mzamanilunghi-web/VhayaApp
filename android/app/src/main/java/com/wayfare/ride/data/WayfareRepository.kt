@@ -2552,9 +2552,17 @@ class WayfareRepository(
         }
     }
 
-    suspend fun updatePayoutBatchStatus(batchId: String, nextStatus: String): Result<Unit> {
+    suspend fun approvePayoutBatch(batchId: String): Result<Unit> {
         return withValidToken { apiUrl, token, _ ->
-            apiClient.updateAdminPayoutBatchStatus(apiUrl, token, batchId, nextStatus).onSuccess {
+            apiClient.approveAdminPayoutBatch(apiUrl, token, batchId).onSuccess {
+                refreshActiveSessionData()
+            }
+        }
+    }
+
+    suspend fun recordExternalPaymentForPayoutBatch(batchId: String): Result<Unit> {
+        return withValidToken { apiUrl, token, _ ->
+            apiClient.recordExternalPaymentForAdminPayoutBatch(apiUrl, token, batchId).onSuccess {
                 refreshActiveSessionData()
             }
         }

@@ -52,6 +52,7 @@ import com.wayfare.ride.ui.WayfareUiState
 import com.wayfare.ride.ui.WayfareViewModel
 import com.wayfare.ride.ui.components.MonoBadge
 import com.wayfare.ride.ui.components.StatusChip
+import com.wayfare.ride.ui.components.WayfareConfirmDialog
 import com.wayfare.ride.ui.components.WayfareEmptyState
 import com.wayfare.ride.ui.components.formatShortTime
 import com.wayfare.ride.ui.rider.SupportThreadView
@@ -59,6 +60,11 @@ import com.wayfare.ride.ui.theme.LocalWayfareColors
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Locale
+
+private enum class PayoutBatchAction {
+    APPROVE,
+    RECORD_EXTERNAL_PAYMENT
+}
 
 private fun currentWeekIsoBounds(): Pair<String, String> {
     val fmt = SimpleDateFormat("yyyy-MM-dd", Locale.US)
@@ -177,6 +183,7 @@ fun AdminPayoutsTab(
     var batchEndInput by remember { mutableStateOf(defaultEndIso) }
     var provider by remember { mutableStateOf("paystack") }
     var transferConfirmed by remember { mutableStateOf(false) }
+    var pendingBatchAction by remember { mutableStateOf<Pair<String, PayoutBatchAction>?>(null) }
 
     val amountZar = amountInput.toDoubleOrNull() ?: 0.0
     val canRecordPayout = selectedDriver != null &&
@@ -273,15 +280,37 @@ fun AdminPayoutsTab(
                         )
                     }
                     Row(
-                        horizontalArrangement = Arrangement.spacedBy(6.dp),
-                        modifier = Modifier.horizontalScroll(rememberScrollState())
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        modifier = Modifier.fillMaxWidth()
                     ) {
-                        listOf("open", "submitted", "paid", "reconciled").forEach { st ->
-                            FilterChip(
-                                selected = batch.status == st,
-                                onClick = { viewModel.updatePayoutBatchStatus(batch.id, st) },
-                                label = { Text(st.replaceFirstChar { it.uppercase() }) }
-                            )
+                        StatusChip(
+                            label = batch.status.replace("_", " ").uppercase(),
+                            containerColor = if (batch.status == "paid" || batch.status == "reconciled") {
+                                wayfareColors.brandHighlight
+                            } else {
+                                colorScheme.secondaryContainer
+                            },
+                            contentColor = colorScheme.onPrimaryContainer
+                        )
+                        when (batch.status) {
+                            "open" -> Button(
+                                onClick = {
+                                    pendingBatchAction = batch.id to PayoutBatchAction.APPROVE
+                                },
+                                modifier = Modifier.weight(1f).testTag("admin_approve_batch_${batch.id}")
+                            ) {
+                                Text("Approve batch")
+                            }
+                            "submitted" -> Button(
+                                onClick = {
+                                    pendingBatchAction =
+                                        batch.id to PayoutBatchAction.RECORD_EXTERNAL_PAYMENT
+                                },
+                                modifier = Modifier.weight(1f).testTag("admin_record_external_batch_${batch.id}")
+                            ) {
+                                Text("Record external payment")
+                            }
                         }
                     }
                 }
@@ -454,5 +483,27 @@ fun AdminPayoutsTab(
                 }
             }
         }
+    }
+
+    pendingBatchAction?.let { (batchId, action) ->
+        val isApproval = action == PayoutBatchAction.APPROVE
+        WayfareConfirmDialog(
+            title = if (isApproval) "Approve payout batch?" else "Record external payment?",
+            message = if (isApproval) {
+                "This moves the batch to submitted. It does not send money."
+            } else {
+                "Only continue if the batch has already been paid outside Vhaya."
+            },
+            confirmLabel = if (isApproval) "Approve batch" else "Record payment",
+            onConfirm = {
+                if (isApproval) {
+                    viewModel.approvePayoutBatch(batchId)
+                } else {
+                    viewModel.recordExternalPaymentForPayoutBatch(batchId)
+                }
+                pendingBatchAction = null
+            },
+            onDismiss = { pendingBatchAction = null }
+        )
     }
 }
