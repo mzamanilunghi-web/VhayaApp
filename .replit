@@ -1,0 +1,41 @@
+modules = ["nodejs-24", "python-base-3.13", "postgresql-16"]
+
+[deployment]
+router = "application"
+deploymentTarget = "autoscale"
+
+[deployment.postBuild]
+args = ["pnpm", "store", "prune"]
+env = { "CI" = "true" }
+
+[workflows]
+runButton = "Project"
+
+[agent]
+stack = "PNPM_WORKSPACE"
+expertMode = true
+
+[postMerge]
+path = "scripts/post-merge.sh"
+timeoutMs = 20000
+
+[nix]
+channel = "stable-25_05"
+
+[userenv]
+
+[userenv.production]
+PAYSTACK_CALLBACK_URL = "https://vhaya--bonaw56197.replit.app/api/payments/callback"
+VITE_FIREBASE_API_KEY = "AIzaSyD9pMTWieHyJ9z7qtg_BAKRZ8pqgNDnQiM"
+VITE_FIREBASE_AUTH_DOMAIN = "irgadgetsofficialweb.firebaseapp.com"
+VITE_FIREBASE_PROJECT_ID = "irgadgetsofficialweb"
+VITE_FIREBASE_APP_ID = "1:855107386441:web:d64c2fb26bd3056b3e5398"
+
+[userenv.development]
+VITE_FIREBASE_API_KEY = "AIzaSyD9pMTWieHyJ9z7qtg_BAKRZ8pqgNDnQiM"
+VITE_FIREBASE_APP_ID = "1:855107386441:web:d64c2fb26bd3056b3e5398"
+VITE_FIREBASE_AUTH_DOMAIN = "irgadgetsofficialweb.firebaseapp.com"
+VITE_FIREBASE_PROJECT_ID = "irgadgetsofficialweb"
+
+[objectStorage]
+defaultBucketID = "replit-objstore-5af24cdd-adf5-4c72-999b-76c082a5f6e1"

@@ -1,0 +1,2891 @@
+openapi: 3.1.0
+info:
+  # Do not change the title, if the title changes, the import paths will be broken
+  title: Api
+  version: 0.1.0
+  description: API specification
+servers:
+  - url: /api
+    description: Base API path
+tags:
+  - name: health
+    description: Health operations
+  - name: account
+    description: Account settings and deletion
+  - name: account-deletion
+    description: Public account deletion requests
+  - name: admin
+    description: Staff-only people and review operations
+  - name: driver
+    description: Authenticated driver operations
+  - name: rides
+    description: Authenticated rider and driver ride requests
+paths:
+  /rides:
+    get:
+      operationId: getRideFeed
+      tags: [rides]
+      summary: List ride requests visible to the authenticated account
+      security:
+        - firebaseBearer: []
+      responses:
+        "200":
+          description: Ride requests visible to the rider, driver, or staff member
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RideFeedResponse"
+        "401":
+          description: Sign-in required
+    post:
+      operationId: createRideRequest
+      tags: [rides]
+      summary: Create a rider ride request
+      description: The optional isReturnRequest flag identifies an explicit Return Request and is distinct from Wait & return. Omitted flags are returned as false for compatibility with older requests.
+      security:
+        - firebaseBearer: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateRideRequest"
+      responses:
+        "201":
+          description: Ride request created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CreateRideResponse"
+        "400":
+          description: Ride request fields or route quote are invalid
+        "401":
+          description: Sign-in required
+        "403":
+          description: Only an eligible rider can create a request
+        "409":
+          description: The rider already has an active request
+  /account:
+    delete:
+      operationId: deleteOwnAccount
+      tags: [account]
+      summary: Delete the authenticated rider or driver account
+      description: Permanently removes the profile and authentication identity. Some ride, payment, safety, and audit records may be retained in pseudonymized form for legitimate operational or legal reasons.
+      security:
+        - firebaseBearer: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DeleteAccountInput"
+      responses:
+        "200":
+          description: Account deletion completed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AccountDeletionResult"
+        "202":
+          description: Account access is disabled and deletion is queued for retry
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AccountDeletionResult"
+        "400":
+          description: Confirmation is missing or invalid
+        "401":
+          description: Sign-in required
+        "403":
+          description: This account type cannot use self-service deletion
+        "409":
+          description: An active ride or provider subscription must be resolved first
+  /account-deletion:
+    get:
+      operationId: getAccountDeletionPage
+      tags: [account-deletion]
+      summary: Get the public Wayfare account deletion request page
+      security: []
+      responses:
+        "200":
+          description: Public account deletion request page
+          content:
+            text/html:
+              schema:
+                type: string
+  /account-deletion/requests:
+    post:
+      operationId: submitAccountDeletionRequest
+      tags: [account-deletion]
+      summary: Submit an account deletion request from the web
+      description: The request is queued for staff ownership verification before deletion. Responses do not reveal whether an email matches an account.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PublicAccountDeletionRequestInput"
+      responses:
+        "202":
+          description: Request accepted without disclosing account existence
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PublicAccountDeletionRequestResult"
+        "400":
+          description: Email address is invalid
+        "429":
+          description: Too many requests
+  /account-deletion/requests/{requestId}:
+    get:
+      operationId: getAccountDeletionRequestStatus
+      tags: [account-deletion]
+      summary: Check a deletion request using its private reference
+      security: []
+      parameters:
+        - name: requestId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Request status without account details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PublicAccountDeletionRequestStatus"
+        "400":
+          description: Request reference is invalid
+  /admin/account-deletion-requests:
+    get:
+      operationId: getAdminAccountDeletionRequests
+      tags: [admin]
+      summary: List account deletion requests awaiting staff action
+      security:
+        - firebaseBearer: []
+      responses:
+        "200":
+          description: Requests awaiting verification or retry
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminAccountDeletionRequestList"
+        "401":
+          description: Sign-in required
+        "403":
+          description: Staff access required
+  /admin/account-deletion-requests/{requestId}/complete:
+    post:
+      operationId: completeAdminAccountDeletionRequest
+      tags: [admin]
+      summary: Verify and complete an account deletion request
+      description: Staff must verify account ownership and confirm any external subscription has been cancelled before completing deletion.
+      security:
+        - firebaseBearer: []
+      parameters:
+        - name: requestId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CompleteAccountDeletionInput"
+      responses:
+        "200":
+          description: Account deletion completed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AccountDeletionResult"
+        "202":
+          description: Deletion is processing and may be safely retried
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AccountDeletionResult"
+        "400":
+          description: Staff confirmations are missing or invalid
+        "401":
+          description: Sign-in required
+        "403":
+          description: Staff access required
+        "404":
+          description: Request not found
+        "409":
+          description: The account has an active ride or uncancelled provider subscription
+  /admin/account-deletion-requests/{requestId}/reject:
+    post:
+      operationId: rejectAdminAccountDeletionRequest
+      tags: [admin]
+      summary: Reject an account deletion request
+      security:
+        - firebaseBearer: []
+      parameters:
+        - name: requestId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RejectAccountDeletionInput"
+      responses:
+        "200":
+          description: Request rejected
+        "400":
+          description: A review reason is required
+        "401":
+          description: Sign-in required
+        "403":
+          description: Staff access required
+        "404":
+          description: Request not found
+        "409":
+          description: Request is already completed
+  /healthz:
+    get:
+      operationId: healthCheck
+      tags: [health]
+      summary: Health check
+      description: Returns server health status
+      security: []
+      responses:
+        "200":
+          description: Healthy
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthStatus"
+  /admin/session:
+    get:
+      operationId: getAdminSession
+      tags: [admin]
+      summary: Get the current staff session
+      security:
+        - firebaseBearer: []
+      responses:
+        "200":
+          description: Authorized staff identity
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminSession"
+        "401":
+          description: Sign-in required
+        "403":
+          description: Staff access required
+  /admin/online-drivers:
+    get:
+      operationId: getAdminOnlineDrivers
+      tags: [admin]
+      summary: Get online drivers and their current location freshness
+      description: Returns approved, unsuspended drivers who are online. Coordinates are included only when updated within the last 90 seconds; older locations are never plotted.
+      security:
+        - firebaseBearer: []
+      responses:
+        "200":
+          description: Online drivers and current locations
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminOnlineDriversResponse"
+        "401":
+          description: Sign-in required
+        "403":
+          description: Staff access required
+  /admin/rides:
+    get:
+      operationId: getAdminRides
+      tags: [admin]
+      summary: Search ride requests for operations staff
+      security:
+        - firebaseBearer: []
+      parameters:
+        - name: q
+          in: query
+          required: false
+          schema:
+            type: string
+            minLength: 2
+            maxLength: 100
+        - name: status
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [all, requested, countered, accepted, arrived, in_progress, completed, cancelled, unfulfilled]
+            default: all
+        - name: page
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 0
+            maximum: 1000
+            default: 0
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 50
+            default: 25
+      responses:
+        "200":
+          description: Matching ride requests
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminRidesResponse"
+        "400":
+          description: Ride filters are invalid
+        "401":
+          description: Sign-in required
+        "403":
+          description: Staff access required
+  /admin/people:
+    get:
+      operationId: searchAdminPeople
+      tags: [admin]
+      summary: Search requester and driver records
+      security:
+        - firebaseBearer: []
+      parameters:
+        - name: q
+          in: query
+          required: true
+          schema:
+            type: string
+            minLength: 2
+            maxLength: 100
+        - name: type
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [all, requesters, drivers]
+            default: all
+        - name: page
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 0
+            maximum: 1000
+            default: 0
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 50
+            default: 25
+      responses:
+        "200":
+          description: Matching people records
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminPeopleSearchResponse"
+        "400":
+          description: Search query is invalid
+        "401":
+          description: Sign-in required
+        "403":
+          description: Staff access required
+  /admin/people/{userId}:
+    get:
+      operationId: getAdminPerson
+      tags: [admin]
+      summary: Get a requester or driver record
+      security:
+        - firebaseBearer: []
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 128
+      responses:
+        "200":
+          description: Person and related operational records
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminPersonDetail"
+        "401":
+          description: Sign-in required
+        "403":
+          description: Staff access required
+        "404":
+          description: Person not found
+  /admin/people/{userId}/role:
+    patch:
+      operationId: updateAdminPersonRole
+      tags: [admin]
+      summary: Update a person's server-managed Wayfare role
+      security:
+        - firebaseBearer: []
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 128
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateAdminPersonRoleRequest"
+      responses:
+        "200":
+          description: Updated person record
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  person:
+                    $ref: "#/components/schemas/AdminPersonSummary"
+                required: [person]
+        "400":
+          description: Role input is invalid
+        "401":
+          description: Sign-in required
+        "403":
+          description: Staff access required
+        "404":
+          description: Person not found
+        "409":
+          description: The role change is not allowed
+  /admin/driver-applications:
+    get:
+      operationId: getAdminDriverApplications
+      tags: [admin]
+      summary: List driver applications awaiting staff review
+      security:
+        - firebaseBearer: []
+      responses:
+        "200":
+          description: Driver applications that have not been decided
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  applications:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/AdminDriverApplication"
+                required: [applications]
+        "401":
+          description: Sign-in required
+        "403":
+          description: Staff access required
+  /admin/people/{userId}/reviews:
+    post:
+      operationId: createAdminReview
+      tags: [admin]
+      summary: Record a staff review outcome
+      security:
+        - firebaseBearer: []
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 128
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateAdminReviewRequest"
+      responses:
+        "201":
+          description: Review outcome saved with an audit record
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminReviewWriteResult"
+        "400":
+          description: Review input is invalid
+        "401":
+          description: Sign-in required
+        "403":
+          description: Staff access required
+        "404":
+          description: Person or driver profile not found
+        "409":
+          description: The record is not eligible for this outcome
+  /driver/subscription/offers:
+    get:
+      operationId: getDriverSubscriptionOffers
+      tags: [driver]
+      summary: List active driver plans and eligible promotions
+      description: Promotion eligibility is evaluated by the server from completed rides, the driver's service city, verified rating aggregates, dates, and usage limits. Missing rating data never qualifies a driver.
+      security:
+        - firebaseBearer: []
+      responses:
+        "200":
+          description: Server-priced plans, eligible promotions, and trusted rating facts
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DriverSubscriptionOffersResponse"
+        "401":
+          description: Sign-in required
+        "403":
+          description: Driver access required
+  /driver/subscription/initialize:
+    post:
+      operationId: initializeDriverSubscription
+      tags: [driver]
+      summary: Start checkout for an admin-managed driver plan
+      description: The server supplies the amount from the selected plan. An automatic-renewal plan requires explicit consent. Promotions are one-time discounts; the recurring charge uses the undiscounted plan price.
+      security:
+        - firebaseBearer: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DriverSubscriptionInitializeInput"
+      responses:
+        "201":
+          description: Checkout initialized or a fully covered manual plan activated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DriverSubscriptionInitializeResponse"
+        "400":
+          description: Plan, promotion, or renewal consent is invalid
+        "401":
+          description: Sign-in required
+        "403":
+          description: Driver access required
+        "404":
+          description: Plan or promotion not found
+        "409":
+          description: The driver already has an active or pending subscription
+  /driver/subscription:
+    get:
+      operationId: getDriverSubscription
+      tags: [driver]
+      summary: Get the authenticated driver's current subscription
+      security:
+        - firebaseBearer: []
+      responses:
+        "200":
+          description: Current subscription and plan details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DriverSubscriptionResponse"
+        "401":
+          description: Sign-in required
+        "403":
+          description: Driver access required
+  /driver/subscription/cancel:
+    post:
+      operationId: cancelDriverSubscriptionRenewal
+      tags: [driver]
+      summary: Stop future automatic renewals
+      description: The current paid period remains active until its expiry. For Paystack subscriptions the provider must confirm that future charges are disabled before the server records the cancellation.
+      security:
+        - firebaseBearer: []
+      responses:
+        "200":
+          description: Renewal stopped, with current access through the paid period
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DriverSubscriptionResponse"
+        "401":
+          description: Sign-in required
+        "403":
+          description: Driver access required
+        "404":
+          description: No current subscription was found
+        "409":
+          description: The provider subscription cannot be safely cancelled
+  /admin/driver-subscription-plans:
+    get:
+      operationId: getAdminDriverSubscriptionPlans
+      tags: [admin]
+      summary: List driver subscription plans
+      security:
+        - firebaseBearer: []
+      responses:
+        "200":
+          description: Driver plans and active subscription counts
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminDriverSubscriptionPlanList"
+        "401":
+          description: Sign-in required
+        "403":
+          description: Admin access required
+    post:
+      operationId: createAdminDriverSubscriptionPlan
+      tags: [admin]
+      summary: Create an admin-managed driver plan
+      security:
+        - firebaseBearer: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DriverSubscriptionPlanInput"
+      responses:
+        "201":
+          description: Plan created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminDriverSubscriptionPlanResponse"
+        "400":
+          description: Plan fields are invalid
+        "401":
+          description: Sign-in required
+        "403":
+          description: Admin access required
+  /admin/driver-subscription-plans/{planId}:
+    patch:
+      operationId: updateAdminDriverSubscriptionPlan
+      tags: [admin]
+      summary: Edit or pause a driver subscription plan
+      description: Pausing a plan prevents new checkouts. It does not cancel existing provider subscriptions.
+      security:
+        - firebaseBearer: []
+      parameters:
+        - name: planId
+          in: path
+          required: true
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 128
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DriverSubscriptionPlanUpdate"
+      responses:
+        "200":
+          description: Plan updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminDriverSubscriptionPlanResponse"
+        "400":
+          description: Plan fields are invalid
+        "401":
+          description: Sign-in required
+        "403":
+          description: Admin access required
+        "404":
+          description: Plan not found
+  /admin/driver-subscriptions:
+    get:
+      operationId: getAdminDriverSubscriptions
+      tags: [admin]
+      summary: Search drivers and their current subscriptions
+      security:
+        - firebaseBearer: []
+      parameters:
+        - name: q
+          in: query
+          required: false
+          schema:
+            type: string
+            minLength: 2
+            maxLength: 100
+        - name: page
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 0
+            maximum: 1000
+            default: 0
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 50
+            default: 25
+      responses:
+        "200":
+          description: Matching driver subscription records, payment history summaries, and trusted rating data
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminDriverSubscriptionList"
+        "401":
+          description: Sign-in required
+        "403":
+          description: Admin access required
+  /admin/driver-subscriptions/{driverId}:
+    patch:
+      operationId: updateAdminDriverSubscription
+      tags: [admin]
+      summary: Safely change a driver's plan, status, or end date
+      description: Changes to an automatic subscription disable future Paystack charges first. Payment history is append-only and is never rewritten.
+      security:
+        - firebaseBearer: []
+      parameters:
+        - name: driverId
+          in: path
+          required: true
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 128
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AdminDriverSubscriptionUpdate"
+      responses:
+        "200":
+          description: Current subscription updated and audit history recorded
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminDriverSubscriptionResponse"
+        "400":
+          description: Subscription fields are invalid
+        "401":
+          description: Sign-in required
+        "403":
+          description: Admin access required
+        "404":
+          description: Driver or plan not found
+        "409":
+          description: The requested change conflicts with the current subscription
+        "502":
+          description: The provider could not confirm cancellation
+  /admin/driver-promotions:
+    get:
+      operationId: getAdminDriverPromotions
+      tags: [admin]
+      summary: List driver promotions and redemption counts
+      security:
+        - firebaseBearer: []
+      responses:
+        "200":
+          description: Promotions and usage counts
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminDriverPromotionList"
+        "401":
+          description: Sign-in required
+        "403":
+          description: Admin access required
+    post:
+      operationId: createAdminDriverPromotion
+      tags: [admin]
+      summary: Create a fixed or percentage driver promotion
+      security:
+        - firebaseBearer: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DriverPromotionInput"
+      responses:
+        "201":
+          description: Promotion created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminDriverPromotionResponse"
+        "400":
+          description: Promotion fields are invalid
+        "401":
+          description: Sign-in required
+        "403":
+          description: Admin access required
+  /admin/driver-promotions/{promotionId}:
+    patch:
+      operationId: updateAdminDriverPromotion
+      tags: [admin]
+      summary: Edit or pause a driver promotion
+      security:
+        - firebaseBearer: []
+      parameters:
+        - name: promotionId
+          in: path
+          required: true
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 128
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DriverPromotionUpdate"
+      responses:
+        "200":
+          description: Promotion updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminDriverPromotionResponse"
+        "400":
+          description: Promotion fields are invalid
+        "401":
+          description: Sign-in required
+        "403":
+          description: Admin access required
+        "404":
+          description: Promotion not found
+  /driver/profile/location:
+    patch:
+      operationId: updateDriverOnlineLocation
+      tags: [driver]
+      summary: Share the driver's current location while online
+      description: Stores only the latest point while an approved driver is online. Drivers should send foreground location updates while online and stop when offline; staff can view fresh points only.
+      security:
+        - firebaseBearer: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DriverOnlineLocationInput"
+      responses:
+        "200":
+          description: Current online location recorded
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DriverOnlineLocationResponse"
+        "400":
+          description: Coordinates are invalid
+        "401":
+          description: Sign-in required
+        "403":
+          description: Only approved, unsuspended online drivers can share location
+  /driver/earnings:
+    get:
+      operationId: getDriverEarnings
+      tags: [driver]
+      summary: Get driver earnings from eligible completed rides
+      security:
+        - firebaseBearer: []
+      parameters:
+        - name: driverId
+          in: query
+          required: false
+          schema:
+            type: string
+            minLength: 1
+      responses:
+        "200":
+          description: Estimated vs paid driver earnings with source records
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DriverEarnings"
+        "401":
+          description: Sign-in required
+        "403":
+          description: Riders can only view their own earnings
+  /admin/payments/{paymentId}/refund:
+    post:
+      operationId: createPaymentRefund
+      tags: [admin]
+      summary: Request a refund for a captured ride payment (audit only)
+      security:
+        - firebaseBearer: []
+      parameters:
+        - name: paymentId
+          in: path
+          required: true
+          schema:
+            type: string
+            minLength: 1
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateRefundRequest"
+      responses:
+        "202":
+          description: Refund requested; provider confirmation still required
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RefundResult"
+        "400":
+          description: Refund input is invalid
+        "401":
+          description: Sign-in required
+        "403":
+          description: Staff access required
+        "404":
+          description: Payment not found
+        "409":
+          description: Payment is not eligible for refund
+  /trips/{tripId}/receipt:
+    get:
+      operationId: getTripReceipt
+      tags: [payments]
+      summary: Get a per-trip receipt with fare, commission, and payment details
+      security:
+        - firebaseBearer: []
+      parameters:
+        - name: tripId
+          in: path
+          required: true
+          schema:
+            type: string
+            minLength: 1
+      responses:
+        "200":
+          description: Trip receipt
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  receipt:
+                    type: object
+                required:
+                  - receipt
+        "401":
+          description: Sign-in required
+        "403":
+          description: You can only view receipts for trips you participated in
+        "404":
+          description: Trip was not found
+  /admin/payouts/run-weekly:
+    post:
+      operationId: runWeeklyPayouts
+      tags: [admin]
+      summary: Run the weekly payout cycle for all active drivers
+      security:
+        - firebaseBearer: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                periodStart:
+                  type: string
+                  format: date-time
+                periodEnd:
+                  type: string
+                  format: date-time
+              required:
+                - periodStart
+                - periodEnd
+      responses:
+        "201":
+          description: Payout batch created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  batch:
+                    type: object
+                  drivers:
+                    type: array
+                    items: {}
+        "400":
+          description: Invalid period dates
+        "401":
+          description: Sign-in required
+        "403":
+          description: Staff access required
+        "409":
+          description: A payout batch already exists for this period
+  /admin/payouts/batches:
+    get:
+      operationId: getPayoutBatches
+      tags: [admin]
+      summary: List weekly payout batches
+      security:
+        - firebaseBearer: []
+      responses:
+        "200":
+          description: List of payout batches
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  batches:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/PayoutBatch"
+        "401":
+          description: Sign-in required
+        "403":
+          description: Staff access required
+  /admin/payouts/banks:
+    get:
+      operationId: getPayoutBanks
+      tags: [admin]
+      summary: List Paystack banks available for South African payouts
+      security:
+        - firebaseBearer: []
+      responses:
+        "200":
+          description: Available ZAR payout banks
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  banks:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/PayoutBank"
+                required: [banks]
+        "401":
+          description: Sign-in required
+        "403":
+          description: Staff access required
+        "503":
+          description: Paystack is not configured
+  /admin/payouts/recipients:
+    get:
+      operationId: getPayoutRecipients
+      tags: [admin]
+      summary: List active drivers and their masked payout recipients
+      security:
+        - firebaseBearer: []
+      responses:
+        "200":
+          description: Driver payout recipient setup
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  drivers:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/PayoutDriverRecipient"
+                required: [drivers]
+        "401":
+          description: Sign-in required
+        "403":
+          description: Staff access required
+    post:
+      operationId: createPayoutRecipient
+      tags: [admin]
+      summary: Register or replace a driver's verified Paystack payout recipient
+      security:
+        - firebaseBearer: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PayoutRecipientInput"
+      responses:
+        "201":
+          description: Recipient validated and saved with masked account details
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  recipient:
+                    $ref: "#/components/schemas/PayoutRecipient"
+                required: [recipient]
+        "400":
+          description: Recipient details are invalid
+        "401":
+          description: Sign-in required
+        "403":
+          description: Staff access required
+        "409":
+          description: Driver is not eligible to receive payouts
+        "502":
+          description: Paystack could not validate the recipient
+        "503":
+          description: Paystack is not configured
+  /admin/payouts/batches/{batchId}:
+    get:
+      operationId: getPayoutBatchDetail
+      tags: [admin]
+      summary: Review a payout batch and masked driver recipients
+      security:
+        - firebaseBearer: []
+      parameters:
+        - name: batchId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Batch and per-driver payout preview
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PayoutBatchDetail"
+        "401":
+          description: Sign-in required
+        "403":
+          description: Staff access required
+        "404":
+          description: Payout batch was not found
+  /admin/payouts/batches/{batchId}/transfers:
+    post:
+      operationId: startPayoutBatchTransfers
+      tags: [admin]
+      summary: Initiate confirmed Paystack transfers for an approved payout batch
+      security:
+        - firebaseBearer: []
+      parameters:
+        - name: batchId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/StartPayoutBatchTransfersInput"
+      responses:
+        "200":
+          description: Transfer attempts and current outcomes
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PayoutBatchTransferResult"
+        "400":
+          description: Explicit transfer confirmation is required
+        "401":
+          description: Sign-in required
+        "403":
+          description: Staff access required
+        "404":
+          description: Payout batch was not found
+        "409":
+          description: Batch is not approved or recipients are incomplete
+        "503":
+          description: Paystack transfers are disabled or not configured
+  /admin/payouts/{payoutId}/verify:
+    post:
+      operationId: verifyPayoutTransfer
+      tags: [admin]
+      summary: Check and reconcile a payout with Paystack
+      security:
+        - firebaseBearer: []
+      parameters:
+        - name: payoutId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Provider-confirmed payout status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PayoutTransferOutcome"
+        "401":
+          description: Sign-in required
+        "403":
+          description: Staff access required
+        "404":
+          description: Payout was not found
+        "409":
+          description: Transfer has not been initiated
+        "502":
+          description: Paystack could not verify this transfer
+        "503":
+          description: Paystack is not configured
+  /admin/payouts/batches/{batchId}/external-payment:
+    post:
+      operationId: recordExternalPayoutBatchPayment
+      tags: [admin]
+      summary: Record a batch paid outside Paystack before any Paystack transfer starts
+      security:
+        - firebaseBearer: []
+      parameters:
+        - name: batchId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ConfirmExternalPayoutInput"
+      responses:
+        "200":
+          description: External payment recorded
+        "400":
+          description: Explicit external payment confirmation is required
+        "401":
+          description: Sign-in required
+        "403":
+          description: Staff access required
+        "404":
+          description: Payout batch was not found
+        "409":
+          description: Batch cannot be marked externally paid
+  /admin/payouts/batches/{batchId}/approve:
+    patch:
+      operationId: approvePayoutBatch
+      tags: [admin]
+      summary: Approve a payout batch for disbursement
+      security:
+        - firebaseBearer: []
+      parameters:
+        - name: batchId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Batch approved
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  batch:
+                    type: object
+        "401":
+          description: Sign-in required
+        "403":
+          description: Staff access required
+        "404":
+          description: Payout batch was not found
+        "409":
+          description: Only open batches can be approved
+  /admin/people/{userId}/suspend:
+    patch:
+      operationId: suspendAdminPerson
+      tags: [admin]
+      summary: Suspend or unsuspend a user account
+      security:
+        - firebaseBearer: []
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 128
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                suspend:
+                  type: boolean
+                reason:
+                  type: string
+              required:
+                - suspend
+      responses:
+        "200":
+          description: Suspension status updated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  userId:
+                    type: string
+                  isSuspended:
+                    type: boolean
+                  suspendedAt:
+                    type: [integer, "null"]
+                  suspendedReason:
+                    type: [string, "null"]
+        "400":
+          description: Suspension input is invalid
+        "401":
+          description: Sign-in required
+        "403":
+          description: Staff access required
+        "404":
+          description: Account was not found
+        "409":
+          description: Cannot suspend your own account
+  /support/cases:
+    get:
+      operationId: getSupportCases
+      tags: [support]
+      summary: List the authenticated user's support cases and staff replies
+      security:
+        - firebaseBearer: []
+      responses:
+        "200":
+          description: Rider support cases with staff replies
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  cases:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/SupportCase"
+                  required:
+                    - cases
+        "401":
+          description: Sign-in required
+components:
+  securitySchemes:
+    firebaseBearer:
+      type: http
+      scheme: bearer
+      bearerFormat: Firebase ID token
+  schemas:
+    DeleteAccountInput:
+      type: object
+      properties:
+        confirmation:
+          type: string
+          enum: [DELETE]
+      required: [confirmation]
+    PublicAccountDeletionRequestInput:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+          maxLength: 254
+      required: [email]
+    CompleteAccountDeletionInput:
+      type: object
+      properties:
+        identityVerified:
+          type: boolean
+          const: true
+        externalSubscriptionsCancelled:
+          type: boolean
+          const: true
+      required: [identityVerified, externalSubscriptionsCancelled]
+    RejectAccountDeletionInput:
+      type: object
+      properties:
+        reason:
+          type: string
+          minLength: 5
+          maxLength: 500
+      required: [reason]
+    AccountDeletionResult:
+      type: object
+      properties:
+        requestId:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum: [completed, processing]
+        deleted:
+          type: boolean
+        retainedData:
+          type: array
+          items:
+            type: string
+      required: [requestId, status, deleted, retainedData]
+    PublicAccountDeletionRequestResult:
+      type: object
+      properties:
+        requestId:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum: [received]
+        message:
+          type: string
+      required: [requestId, status, message]
+    PublicAccountDeletionRequestStatus:
+      type: object
+      properties:
+        requestId:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum: [received, processing, completed, unable_to_complete]
+        requestedAt:
+          type: [string, "null"]
+          format: date-time
+        message:
+          type: string
+      required: [requestId, status, requestedAt, message]
+    AdminAccountDeletionRequestList:
+      type: object
+      properties:
+        requests:
+          type: array
+          items:
+            $ref: "#/components/schemas/AdminAccountDeletionRequest"
+      required: [requests]
+    AdminAccountDeletionRequest:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        userId:
+          type: string
+        displayName:
+          type: string
+        email:
+          type: [string, "null"]
+          format: email
+        role:
+          type: string
+          enum: [rider, driver, admin]
+        status:
+          type: string
+          enum: [requested, processing, completed, rejected]
+        requestedAt:
+          type: string
+          format: date-time
+        pseudonymized:
+          type: boolean
+        reason:
+          type: [string, "null"]
+      required: [id, userId, displayName, email, role, status, requestedAt, pseudonymized, reason]
+    DriverEarnings:
+      type: object
+      properties:
+        driverId:
+          type: string
+        currency:
+          type: [string, "null"]
+        estimatedEarningsMinor:
+          type: integer
+        paidEarningsMinor:
+          type: integer
+        outstandingEarningsMinor:
+          type: integer
+        rideCount:
+          type: integer
+        paidRideCount:
+          type: integer
+        records:
+          type: array
+          items:
+            $ref: "#/components/schemas/DriverEarningsRecord"
+      required:
+        - driverId
+        - estimatedEarningsMinor
+        - paidEarningsMinor
+    DriverEarningsRecord:
+      type: object
+      properties:
+        rideId:
+          type: string
+        pickup:
+          type: string
+        destination:
+          type: string
+        fareMinor:
+          type: integer
+        currency:
+          type: string
+        completedAt:
+          type: integer
+        payment:
+          type: object
+          nullable: true
+        paidMinor:
+          type: integer
+      required:
+        - rideId
+        - fareMinor
+        - paidMinor
+    CreateRefundRequest:
+      type: object
+      properties:
+        reason:
+          type: string
+          maxLength: 500
+      required:
+        - reason
+    RefundResult:
+      type: object
+      properties:
+        refund:
+          $ref: "#/components/schemas/Refund"
+        payment:
+          type: object
+      required:
+        - refund
+        - payment
+    Refund:
+      type: object
+      properties:
+        id:
+          type: string
+        paymentId:
+          type: string
+        requestId:
+          type: string
+        amountMinor:
+          type: integer
+        currency:
+          type: string
+        status:
+          type: string
+        reason:
+          type: string
+        requestedBy:
+          type: string
+        requestedAt:
+          type: integer
+      required:
+        - id
+        - paymentId
+        - requestId
+        - amountMinor
+        - currency
+        - status
+        - requestedAt
+    SupportCase:
+      type: object
+      properties:
+        id:
+          type: integer
+        rideId:
+          type: string
+        category:
+          type: string
+        priority:
+          type: string
+        status:
+          type: string
+        assignedTo:
+          type: [string, "null"]
+        staffNote:
+          type: [string, "null"]
+        message:
+          type: [string, "null"]
+        createdAt:
+          type: integer
+        updatedAt:
+          type: integer
+        pickup:
+          type: string
+        destination:
+          type: string
+        rideStatus:
+          type: string
+        replies:
+          type: array
+          items:
+            $ref: "#/components/schemas/SupportCaseReply"
+      required:
+        - id
+        - rideId
+        - category
+        - priority
+        - status
+        - createdAt
+    SupportCaseReply:
+      type: object
+      properties:
+        id:
+          type: string
+        message:
+          type: string
+        createdAt:
+          type: integer
+      required:
+        - id
+        - message
+        - createdAt
+    HealthStatus:
+      type: object
+      properties:
+        status:
+          type: string
+      required:
+        - status
+    UserRole:
+      type: string
+      enum: [rider, driver, admin]
+    PersonType:
+      type: string
+      enum: [requester, driver, both]
+    ReviewSubjectType:
+      type: string
+      enum: [requester, driver]
+    ReviewOutcome:
+      type: string
+      enum: [reviewed, needs_follow_up, approved, rejected]
+    DriverProfileSummary:
+      type: object
+      properties:
+        applicationStatus:
+          type: string
+        verificationStatus:
+          type: string
+        vehicle:
+          type: [string, "null"]
+        vehicleColor:
+          type: [string, "null"]
+        registration:
+          type: [string, "null"]
+        licenceExpiry:
+          type: [string, "null"]
+        operatingLicenceReference:
+          type: [string, "null"]
+        isOnline:
+          type: boolean
+        staffNote:
+          type: [string, "null"]
+        submittedAt:
+          type: [string, "null"]
+          format: date-time
+        reviewedAt:
+          type: [string, "null"]
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      required:
+        - applicationStatus
+        - verificationStatus
+        - vehicle
+        - vehicleColor
+        - registration
+        - licenceExpiry
+        - operatingLicenceReference
+        - isOnline
+        - staffNote
+        - submittedAt
+        - reviewedAt
+        - updatedAt
+    AdminPersonSummary:
+      type: object
+      properties:
+        userId:
+          type: string
+        displayName:
+          type: string
+        email:
+          type: [string, "null"]
+        role:
+          $ref: "#/components/schemas/UserRole"
+        personType:
+          $ref: "#/components/schemas/PersonType"
+        rideCount:
+          type: integer
+        completedRideCount:
+          type: integer
+        lastRideAt:
+          type: [string, "null"]
+          format: date-time
+        driverProfile:
+          oneOf:
+            - $ref: "#/components/schemas/DriverProfileSummary"
+            - type: "null"
+        lastReviewOutcome:
+          oneOf:
+            - $ref: "#/components/schemas/ReviewOutcome"
+            - type: "null"
+        lastReviewedAt:
+          type: [string, "null"]
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      required:
+        - userId
+        - displayName
+        - email
+        - role
+        - personType
+        - rideCount
+        - completedRideCount
+        - lastRideAt
+        - driverProfile
+        - lastReviewOutcome
+        - lastReviewedAt
+        - updatedAt
+    AdminPeopleSearchResponse:
+      type: object
+      properties:
+        people:
+          type: array
+          items:
+            $ref: "#/components/schemas/AdminPersonSummary"
+        page:
+          type: integer
+        limit:
+          type: integer
+        hasMore:
+          type: boolean
+      required: [people, page, limit, hasMore]
+    CreateRideRequest:
+      type: object
+      description: Fare is required when pricingMode is offer. The server verifies the signed route quote before creating the request.
+      additionalProperties: true
+      properties:
+        pickup:
+          type: string
+          minLength: 1
+          maxLength: 300
+        destination:
+          type: string
+          minLength: 1
+          maxLength: 300
+        category:
+          type: string
+          enum: [standard, comfort, xl]
+        pricingMode:
+          type: string
+          enum: [estimate, offer]
+        fare:
+          type: number
+          exclusiveMinimum: 0
+          maximum: 100000
+        route:
+          type: object
+          properties:
+            quoteToken:
+              type: string
+          required: [quoteToken]
+          additionalProperties: true
+        pickupAt:
+          type: integer
+          format: int64
+          description: Optional pickup time in Unix milliseconds
+        paymentMethod:
+          type: string
+          enum: [card, cash, wallet]
+          default: card
+        isReturnRequest:
+          type: boolean
+          default: false
+          description: Explicit Return Request for return-corridor matching; separate from Wait & return.
+      required: [pickup, destination, category, pricingMode, route]
+    RideFeedResponse:
+      type: object
+      properties:
+        role:
+          type: string
+          enum: [rider, driver, admin]
+        trips:
+          type: array
+          items:
+            $ref: "#/components/schemas/RideRecord"
+      required: [role, trips]
+    CreateRideResponse:
+      type: object
+      properties:
+        trip:
+          $ref: "#/components/schemas/RideRecord"
+      required: [trip]
+    RideRecord:
+      type: object
+      description: A normalized ride record. Older requests without isReturnRequest are returned with false.
+      additionalProperties: true
+      properties:
+        id:
+          type: string
+        riderId:
+          type: string
+        driverId:
+          type: [string, "null"]
+        status:
+          type: string
+        fare:
+          type: number
+        pickup:
+          type: string
+        destination:
+          type: string
+        category:
+          type: string
+        currency:
+          type: string
+        pricingMode:
+          type: string
+          enum: [estimate, offer]
+        paymentMethod:
+          type: string
+          enum: [card, cash, wallet]
+        paymentStatus:
+          type: string
+        pickupAt:
+          type: [integer, "null"]
+          format: int64
+        createdAt:
+          type: integer
+          format: int64
+        isReturnRequest:
+          type: boolean
+        offers:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+      required:
+        - id
+        - riderId
+        - driverId
+        - status
+        - fare
+        - pickup
+        - destination
+        - category
+        - currency
+        - pricingMode
+        - paymentMethod
+        - paymentStatus
+        - createdAt
+        - isReturnRequest
+        - offers
+    AdminRidesResponse:
+      type: object
+      properties:
+        rides:
+          type: array
+          items:
+            $ref: "#/components/schemas/AdminRide"
+        page:
+          type: integer
+        limit:
+          type: integer
+        hasMore:
+          type: boolean
+      required: [rides, page, limit, hasMore]
+    AdminRide:
+      type: object
+      properties:
+        id:
+          type: string
+        riderId:
+          type: string
+        riderName:
+          type: string
+        riderEmail:
+          type: [string, "null"]
+        driverId:
+          type: [string, "null"]
+        driverName:
+          type: [string, "null"]
+        driverEmail:
+          type: [string, "null"]
+        status:
+          type: string
+        pickupLabel:
+          type: string
+        destinationLabel:
+          type: string
+        category:
+          type: string
+        fareMinor:
+          type: integer
+        currency:
+          type: string
+        pickupAt:
+          type: [integer, "null"]
+        createdAt:
+          type: integer
+        updatedAt:
+          type: integer
+      required:
+        - id
+        - riderId
+        - riderName
+        - riderEmail
+        - driverId
+        - driverName
+        - driverEmail
+        - status
+        - pickupLabel
+        - destinationLabel
+        - category
+        - fareMinor
+        - currency
+        - pickupAt
+        - createdAt
+        - updatedAt
+    AdminRideSummary:
+      type: object
+      properties:
+        id:
+          type: string
+        status:
+          type: string
+        pickup:
+          type: string
+        destination:
+          type: string
+        relatedAs:
+          type: string
+          enum: [requester, driver]
+        fare:
+          type: number
+        currency:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+      required: [id, status, pickup, destination, relatedAs, fare, currency, createdAt]
+    AdminReviewRecord:
+      type: object
+      properties:
+        id:
+          type: integer
+        subjectType:
+          $ref: "#/components/schemas/ReviewSubjectType"
+        outcome:
+          $ref: "#/components/schemas/ReviewOutcome"
+        note:
+          type: [string, "null"]
+        checksConfirmed:
+          type: boolean
+        actorUserId:
+          type: string
+        actorDisplayName:
+          type: string
+        applicationStatusBefore:
+          type: [string, "null"]
+        applicationStatusAfter:
+          type: [string, "null"]
+        roleBefore:
+          type: [string, "null"]
+        roleAfter:
+          type: [string, "null"]
+        createdAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - subjectType
+        - outcome
+        - note
+        - checksConfirmed
+        - actorUserId
+        - actorDisplayName
+        - applicationStatusBefore
+        - applicationStatusAfter
+        - roleBefore
+        - roleAfter
+        - createdAt
+    AdminSession:
+      type: object
+      properties:
+        userId:
+          type: string
+        displayName:
+          type: string
+        email:
+          type: [string, "null"]
+      required: [userId, displayName, email]
+    DriverOnlineLocationInput:
+      type: object
+      properties:
+        latitude:
+          type: number
+          minimum: -90
+          maximum: 90
+        longitude:
+          type: number
+          minimum: -180
+          maximum: 180
+      required: [latitude, longitude]
+    DriverOnlineLocationResponse:
+      type: object
+      properties:
+        updatedAt:
+          type: integer
+          format: int64
+      required: [updatedAt]
+    AdminOnlineDriver:
+      type: object
+      properties:
+        driverId:
+          type: string
+        displayName:
+          type: string
+        city:
+          type: [string, "null"]
+        vehicle:
+          type: [string, "null"]
+        vehicleColor:
+          type: [string, "null"]
+        location:
+          oneOf:
+            - $ref: "#/components/schemas/OnlineDriverLocation"
+            - type: "null"
+        locationState:
+          type: string
+          enum: [current, stale, waiting]
+        lastLocationAt:
+          type: ["integer", "null"]
+          format: int64
+      required:
+        - driverId
+        - displayName
+        - city
+        - vehicle
+        - vehicleColor
+        - location
+        - locationState
+        - lastLocationAt
+    OnlineDriverLocation:
+      type: object
+      properties:
+        latitude:
+          type: number
+        longitude:
+          type: number
+        updatedAt:
+          type: integer
+          format: int64
+      required: [latitude, longitude, updatedAt]
+    AdminOnlineDriversResponse:
+      type: object
+      properties:
+        generatedAt:
+          type: integer
+          format: int64
+        drivers:
+          type: array
+          items:
+            $ref: "#/components/schemas/AdminOnlineDriver"
+      required: [generatedAt, drivers]
+    AdminPersonDetail:
+      type: object
+      properties:
+        person:
+          $ref: "#/components/schemas/AdminPersonSummary"
+        rides:
+          type: array
+          items:
+            $ref: "#/components/schemas/AdminRideSummary"
+        reviews:
+          type: array
+          items:
+            $ref: "#/components/schemas/AdminReviewRecord"
+      required: [person, rides, reviews]
+    CreateAdminReviewRequest:
+      type: object
+      properties:
+        subjectType:
+          $ref: "#/components/schemas/ReviewSubjectType"
+        outcome:
+          $ref: "#/components/schemas/ReviewOutcome"
+        note:
+          type: [string, "null"]
+          maxLength: 1000
+        checksConfirmed:
+          type: boolean
+          default: false
+      required: [subjectType, outcome]
+    AdminReviewWriteResult:
+      type: object
+      properties:
+        review:
+          $ref: "#/components/schemas/AdminReviewRecord"
+        person:
+          $ref: "#/components/schemas/AdminPersonSummary"
+      required: [review, person]
+    UpdateAdminPersonRoleRequest:
+      type: object
+      properties:
+        role:
+          $ref: "#/components/schemas/UserRole"
+      required: [role]
+    AdminDriverApplication:
+      type: object
+      properties:
+        userId:
+          type: string
+        displayName:
+          type: string
+        email:
+          type: [string, "null"]
+        applicationStatus:
+          type: string
+        verificationStatus:
+          type: string
+        vehicle:
+          type: [string, "null"]
+        vehicleColor:
+          type: [string, "null"]
+        registration:
+          type: [string, "null"]
+        licenceExpiry:
+          type: [string, "null"]
+        operatingLicenceReference:
+          type: [string, "null"]
+        staffNote:
+          type: [string, "null"]
+        submittedAt:
+          type: [integer, "null"]
+        reviewedAt:
+          type: [integer, "null"]
+        complianceChecks:
+          type: array
+          items:
+            type: object
+            properties:
+              documentType:
+                type: string
+                enum:
+                  - identity
+                  - driver_license
+                  - vehicle_registration
+                  - operating_permit
+              status:
+                type: string
+                enum:
+                  - not_reviewed
+                  - verified
+                  - needs_follow_up
+                  - not_required
+              expiresOn:
+                type: [string, "null"]
+                format: date
+              staffNote:
+                type: [string, "null"]
+              reviewedAt:
+                type: [integer, "null"]
+            required:
+              - documentType
+              - status
+              - expiresOn
+              - staffNote
+              - reviewedAt
+        incompleteComplianceDocuments:
+          type: array
+          items:
+            type: string
+      required:
+        - userId
+        - displayName
+        - email
+        - applicationStatus
+        - verificationStatus
+        - vehicle
+        - vehicleColor
+        - registration
+        - licenceExpiry
+        - operatingLicenceReference
+        - staffNote
+        - submittedAt
+        - reviewedAt
+        - complianceChecks
+        - incompleteComplianceDocuments
+    PayoutBatch:
+      type: object
+      properties:
+        id:
+          type: string
+        periodStart:
+          type: integer
+        periodEnd:
+          type: integer
+        status:
+          type: string
+          enum: ["open", "submitted", "processing", "partially_paid", "paid", "failed"]
+        settlementMethod:
+          type: [string, "null"]
+          enum: [paystack, external, null]
+        totalAmountMinor:
+          type: integer
+        driverCount:
+          type: integer
+        paidAt:
+          type: [integer, "null"]
+        reconciledAt:
+          type: [integer, "null"]
+        createdAt:
+          type: integer
+        createdBy:
+          type: [string, "null"]
+      required:
+        - id
+        - periodStart
+        - periodEnd
+        - status
+        - settlementMethod
+        - totalAmountMinor
+        - driverCount
+        - createdAt
+    PayoutTransferStatus:
+      type: string
+      enum: [not_started, sending, pending, success, failed, otp, unknown, reversed]
+    PayoutBank:
+      type: object
+      properties:
+        name:
+          type: string
+        code:
+          type: string
+      required: [name, code]
+    PayoutRecipientInput:
+      type: object
+      properties:
+        driverId:
+          type: string
+          minLength: 1
+          maxLength: 128
+        name:
+          type: string
+          minLength: 2
+          maxLength: 120
+        accountNumber:
+          type: string
+          minLength: 6
+          maxLength: 30
+          pattern: "^[0-9]+$"
+        bankCode:
+          type: string
+          minLength: 1
+          maxLength: 32
+          pattern: "^[A-Za-z0-9_-]+$"
+      required: [driverId, name, accountNumber, bankCode]
+    PayoutRecipient:
+      type: object
+      properties:
+        driverId:
+          type: string
+        driverName:
+          type: string
+        recipientName:
+          type: string
+        bankName:
+          type: string
+        accountLast4:
+          type: string
+        currency:
+          type: string
+          enum: [ZAR]
+        updatedAt:
+          type: integer
+      required: [driverId, driverName, recipientName, bankName, accountLast4, currency, updatedAt]
+    PayoutDriverRecipient:
+      type: object
+      properties:
+        driverId:
+          type: string
+        driverName:
+          type: string
+        recipient:
+          oneOf:
+            - $ref: "#/components/schemas/PayoutRecipient"
+            - type: "null"
+      required: [driverId, driverName, recipient]
+    PayoutBatchDriver:
+      type: object
+      properties:
+        payoutId:
+          type: integer
+        driverId:
+          type: string
+        driverName:
+          type: string
+        amountMinor:
+          type: integer
+        currency:
+          type: string
+        transferStatus:
+          $ref: "#/components/schemas/PayoutTransferStatus"
+        transferError:
+          type: [string, "null"]
+        transferUpdatedAt:
+          type: [integer, "null"]
+        recipientName:
+          type: [string, "null"]
+        bankName:
+          type: [string, "null"]
+        accountLast4:
+          type: [string, "null"]
+      required: [payoutId, driverId, driverName, amountMinor, currency, transferStatus, transferError, transferUpdatedAt, recipientName, bankName, accountLast4]
+    PayoutBatchDetail:
+      type: object
+      properties:
+        batch:
+          $ref: "#/components/schemas/PayoutBatch"
+        reviewToken:
+          type: string
+        drivers:
+          type: array
+          items:
+            $ref: "#/components/schemas/PayoutBatchDriver"
+      required: [batch, reviewToken, drivers]
+    StartPayoutBatchTransfersInput:
+      type: object
+      properties:
+        confirmed:
+          type: boolean
+        retryFailed:
+          type: boolean
+        reviewToken:
+          type: string
+          minLength: 64
+          maxLength: 64
+          pattern: "^[a-f0-9]{64}$"
+      required: [confirmed, reviewToken]
+    PayoutTransferOutcome:
+      type: object
+      properties:
+        payoutId:
+          type: integer
+        transferStatus:
+          $ref: "#/components/schemas/PayoutTransferStatus"
+        transferReference:
+          type: [string, "null"]
+        transferCode:
+          type: [string, "null"]
+        transferError:
+          type: [string, "null"]
+        transferUpdatedAt:
+          type: [integer, "null"]
+      required: [payoutId, transferStatus, transferReference, transferCode, transferError, transferUpdatedAt]
+    PayoutBatchTransferResult:
+      type: object
+      properties:
+        batch:
+          $ref: "#/components/schemas/PayoutBatch"
+        outcomes:
+          type: array
+          items:
+            $ref: "#/components/schemas/PayoutTransferOutcome"
+      required: [batch, outcomes]
+    ConfirmExternalPayoutInput:
+      type: object
+      properties:
+        confirmed:
+          type: boolean
+      required: [confirmed]
+    DriverSubscriptionBillingInterval:
+      type: string
+      enum: [daily, weekly, monthly, quarterly, biannually, annually]
+    DriverSubscriptionRenewalMode:
+      type: string
+      enum: [manual, automatic]
+    DriverSubscriptionStatus:
+      type: string
+      enum: [pending, active, expired, cancelled]
+    DriverSubscriptionPlan:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        description:
+          type: [string, "null"]
+        amountMinor:
+          type: integer
+        currency:
+          type: string
+          enum: [ZAR]
+        billingInterval:
+          $ref: "#/components/schemas/DriverSubscriptionBillingInterval"
+        renewalMode:
+          $ref: "#/components/schemas/DriverSubscriptionRenewalMode"
+        isActive:
+          type: boolean
+      required: [id, name, description, amountMinor, currency, billingInterval, renewalMode, isActive]
+    AdminDriverSubscriptionPlan:
+      allOf:
+        - $ref: "#/components/schemas/DriverSubscriptionPlan"
+        - type: object
+          properties:
+            activeSubscriptionCount:
+              type: integer
+          required: [activeSubscriptionCount]
+    AdminDriverSubscriptionPlanList:
+      type: object
+      properties:
+        plans:
+          type: array
+          items:
+            $ref: "#/components/schemas/AdminDriverSubscriptionPlan"
+      required: [plans]
+    AdminDriverSubscriptionPlanResponse:
+      type: object
+      properties:
+        plan:
+          $ref: "#/components/schemas/AdminDriverSubscriptionPlan"
+      required: [plan]
+    DriverSubscriptionPlanInput:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 2
+          maxLength: 100
+        description:
+          type: [string, "null"]
+          maxLength: 500
+        amountMinor:
+          type: integer
+          minimum: 1
+          maximum: 100000000
+        currency:
+          type: string
+          enum: [ZAR]
+        billingInterval:
+          $ref: "#/components/schemas/DriverSubscriptionBillingInterval"
+        renewalMode:
+          $ref: "#/components/schemas/DriverSubscriptionRenewalMode"
+        isActive:
+          type: boolean
+      required: [name, amountMinor, currency, billingInterval, renewalMode]
+    DriverSubscriptionPlanUpdate:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 2
+          maxLength: 100
+        description:
+          type: [string, "null"]
+          maxLength: 500
+        amountMinor:
+          type: integer
+          minimum: 1
+          maximum: 100000000
+        currency:
+          type: string
+          enum: [ZAR]
+        billingInterval:
+          $ref: "#/components/schemas/DriverSubscriptionBillingInterval"
+        renewalMode:
+          $ref: "#/components/schemas/DriverSubscriptionRenewalMode"
+        isActive:
+          type: boolean
+    DriverPromotionDiscountType:
+      type: string
+      enum: [fixed, percentage]
+    AdminDriverPromotion:
+      type: object
+      properties:
+        id:
+          type: string
+        code:
+          type: string
+        name:
+          type: string
+        discountType:
+          $ref: "#/components/schemas/DriverPromotionDiscountType"
+        discountValue:
+          type: integer
+        maxDiscountMinor:
+          type: [integer, "null"]
+        currency:
+          type: string
+          enum: [ZAR]
+        planId:
+          type: [string, "null"]
+        startsAt:
+          type: integer
+        endsAt:
+          type: integer
+        serviceArea:
+          type: [string, "null"]
+        maxRedemptions:
+          type: [integer, "null"]
+        newDriverOnly:
+          type: boolean
+        minimumCompletedRides:
+          type: [integer, "null"]
+        minimumRating:
+          type: [number, "null"]
+        isActive:
+          type: boolean
+        redemptionCount:
+          type: integer
+      required: [id, code, name, discountType, discountValue, maxDiscountMinor, currency, planId, startsAt, endsAt, serviceArea, maxRedemptions, newDriverOnly, minimumCompletedRides, minimumRating, isActive, redemptionCount]
+    AdminDriverPromotionList:
+      type: object
+      properties:
+        promotions:
+          type: array
+          items:
+            $ref: "#/components/schemas/AdminDriverPromotion"
+      required: [promotions]
+    AdminDriverPromotionResponse:
+      type: object
+      properties:
+        promotion:
+          $ref: "#/components/schemas/AdminDriverPromotion"
+      required: [promotion]
+    DriverPromotionInput:
+      type: object
+      properties:
+        code:
+          type: string
+          minLength: 3
+          maxLength: 32
+          pattern: "^[A-Za-z0-9_-]+$"
+        name:
+          type: string
+          minLength: 2
+          maxLength: 100
+        discountType:
+          $ref: "#/components/schemas/DriverPromotionDiscountType"
+        discountValue:
+          type: integer
+          minimum: 1
+          maximum: 100000000
+        maxDiscountMinor:
+          type: [integer, "null"]
+          minimum: 1
+        currency:
+          type: string
+          enum: [ZAR]
+        planId:
+          type: [string, "null"]
+        startsAt:
+          type: string
+          format: date-time
+        endsAt:
+          type: string
+          format: date-time
+        serviceArea:
+          type: [string, "null"]
+          maxLength: 100
+        maxRedemptions:
+          type: [integer, "null"]
+          minimum: 1
+        newDriverOnly:
+          type: boolean
+        minimumCompletedRides:
+          type: [integer, "null"]
+          minimum: 0
+        minimumRating:
+          type: [number, "null"]
+          minimum: 1
+          maximum: 5
+        isActive:
+          type: boolean
+      required: [code, name, discountType, discountValue, currency, startsAt, endsAt]
+    DriverPromotionUpdate:
+      type: object
+      properties:
+        code:
+          type: string
+          minLength: 3
+          maxLength: 32
+          pattern: "^[A-Za-z0-9_-]+$"
+        name:
+          type: string
+          minLength: 2
+          maxLength: 100
+        discountType:
+          $ref: "#/components/schemas/DriverPromotionDiscountType"
+        discountValue:
+          type: integer
+          minimum: 1
+          maximum: 100000000
+        maxDiscountMinor:
+          type: [integer, "null"]
+          minimum: 1
+        currency:
+          type: string
+          enum: [ZAR]
+        planId:
+          type: [string, "null"]
+        startsAt:
+          type: string
+          format: date-time
+        endsAt:
+          type: string
+          format: date-time
+        serviceArea:
+          type: [string, "null"]
+          maxLength: 100
+        maxRedemptions:
+          type: [integer, "null"]
+          minimum: 1
+        newDriverOnly:
+          type: boolean
+        minimumCompletedRides:
+          type: [integer, "null"]
+          minimum: 0
+        minimumRating:
+          type: [number, "null"]
+          minimum: 1
+          maximum: 5
+        isActive:
+          type: boolean
+    DriverSubscriptionRating:
+      type: object
+      properties:
+        averageRating:
+          type: [number, "null"]
+        ratingCount:
+          type: integer
+        source:
+          type: string
+      required: [averageRating, ratingCount, source]
+    DriverPromotionOffer:
+      type: object
+      properties:
+        id:
+          type: string
+        code:
+          type: string
+        name:
+          type: string
+        discountType:
+          $ref: "#/components/schemas/DriverPromotionDiscountType"
+        discountValue:
+          type: integer
+        discountMinor:
+          type: integer
+        discountedAmountMinor:
+          type: integer
+        currency:
+          type: string
+        eligible:
+          type: boolean
+        reasons:
+          type: array
+          items:
+            type: string
+      required: [id, code, name, discountType, discountValue, discountMinor, discountedAmountMinor, currency, eligible, reasons]
+    DriverSubscriptionPlanOffer:
+      type: object
+      properties:
+        plan:
+          $ref: "#/components/schemas/DriverSubscriptionPlan"
+        promotions:
+          type: array
+          items:
+            $ref: "#/components/schemas/DriverPromotionOffer"
+      required: [plan, promotions]
+    DriverSubscriptionOffersResponse:
+      type: object
+      properties:
+        plans:
+          type: array
+          items:
+            $ref: "#/components/schemas/DriverSubscriptionPlanOffer"
+        rating:
+          $ref: "#/components/schemas/DriverSubscriptionRating"
+        completedRideCount:
+          type: integer
+        serviceArea:
+          type: [string, "null"]
+      required: [plans, rating, completedRideCount, serviceArea]
+    DriverCurrentSubscription:
+      type: object
+      properties:
+        driverId:
+          type: string
+        planId:
+          type: [string, "null"]
+        planName:
+          type: [string, "null"]
+        status:
+          $ref: "#/components/schemas/DriverSubscriptionStatus"
+        renewalMode:
+          $ref: "#/components/schemas/DriverSubscriptionRenewalMode"
+        autoRenewActive:
+          type: boolean
+        autoRenewIssue:
+          type: [string, "null"]
+        cancelAtPeriodEnd:
+          type: boolean
+        amountMinor:
+          type: integer
+        currency:
+          type: string
+        provider:
+          type: [string, "null"]
+        startedAt:
+          type: [integer, "null"]
+        expiresAt:
+          type: [integer, "null"]
+        nextPaymentAt:
+          type: [integer, "null"]
+        autoRenewConsentAt:
+          type: [integer, "null"]
+      required: [driverId, planId, planName, status, renewalMode, autoRenewActive, autoRenewIssue, cancelAtPeriodEnd, amountMinor, currency, provider, startedAt, expiresAt, nextPaymentAt, autoRenewConsentAt]
+    DriverSubscriptionResponse:
+      type: object
+      properties:
+        subscription:
+          oneOf:
+            - $ref: "#/components/schemas/DriverCurrentSubscription"
+            - type: "null"
+      required: [subscription]
+    DriverSubscriptionInitializeInput:
+      type: object
+      properties:
+        planId:
+          type: string
+          minLength: 1
+          maxLength: 128
+        promotionCode:
+          type: string
+          minLength: 3
+          maxLength: 32
+        autoRenewConsent:
+          type: boolean
+      required: [planId]
+    DriverSubscriptionInitializeResponse:
+      type: object
+      properties:
+        provider:
+          type: string
+          enum: [mock, paystack, promo]
+        mode:
+          type: string
+          enum: [mock, paystack]
+        payment:
+          type: object
+          properties:
+            id:
+              type: string
+            reference:
+              type: string
+            amountMinor:
+              type: integer
+            currency:
+              type: string
+            status:
+              $ref: "#/components/schemas/DriverSubscriptionStatus"
+            paidAt:
+              type: [integer, "null"]
+            expiresAt:
+              type: [integer, "null"]
+            createdAt:
+              type: integer
+          required: [id, reference, amountMinor, currency, status, paidAt, expiresAt, createdAt]
+        subscription:
+          $ref: "#/components/schemas/DriverCurrentSubscription"
+        authorizationUrl:
+          type: [string, "null"]
+      required: [provider, mode, payment, subscription, authorizationUrl]
+    AdminDriverSubscriptionPayment:
+      type: object
+      properties:
+        id:
+          type: string
+        provider:
+          type: string
+        reference:
+          type: string
+        amountMinor:
+          type: integer
+        currency:
+          type: string
+        status:
+          $ref: "#/components/schemas/DriverSubscriptionStatus"
+        startedAt:
+          type: integer
+        expiresAt:
+          type: [integer, "null"]
+      required: [id, provider, reference, amountMinor, currency, status, startedAt, expiresAt]
+    AdminDriverSubscription:
+      type: object
+      properties:
+        driverId:
+          type: string
+        displayName:
+          type: string
+        email:
+          type: [string, "null"]
+        subscription:
+          oneOf:
+            - $ref: "#/components/schemas/DriverCurrentSubscription"
+            - type: "null"
+        lastPayment:
+          oneOf:
+            - $ref: "#/components/schemas/AdminDriverSubscriptionPayment"
+            - type: "null"
+        rating:
+          $ref: "#/components/schemas/DriverSubscriptionRating"
+      required: [driverId, displayName, email, subscription, lastPayment, rating]
+    AdminDriverSubscriptionList:
+      type: object
+      properties:
+        drivers:
+          type: array
+          items:
+            $ref: "#/components/schemas/AdminDriverSubscription"
+        page:
+          type: integer
+        limit:
+          type: integer
+        hasMore:
+          type: boolean
+      required: [drivers, page, limit, hasMore]
+    AdminDriverSubscriptionResponse:
+      type: object
+      properties:
+        subscription:
+          $ref: "#/components/schemas/DriverCurrentSubscription"
+      required: [subscription]
+    AdminDriverSubscriptionUpdate:
+      type: object
+      properties:
+        planId:
+          type: string
+          minLength: 1
+          maxLength: 128
+        status:
+          $ref: "#/components/schemas/DriverSubscriptionStatus"
+        expiresAt:
+          type: [string, "null"]
+          format: date-time
+        reason:
+          type: string
+          maxLength: 500
+

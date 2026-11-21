@@ -1,0 +1,134 @@
+import type { Request, RequestHandler } from "express";
+import { db } from "@workspace/db";
+import { wayfareUsers } from "@workspace/db/schema";
+import { eq } from "drizzle-orm";
+import { logger } from "../lib/logger";
+import {
+  ensureFirebaseWayfareProfile,
+  getFirebaseWayfareProfile,
+  verifyFirebaseIdToken,
+} from "../lib/firebaseAdmin";
+
+type WayfareIdentityRequest = Request & {
+  wayfareUserId?: string;
+};
+
+const USER_SYNC_CACHE_MS = 30_000;
+const userSyncCache = new Map<string, number>();
+
+function bearerToken(req: Request): string | null {
+  const authorization = req.headers.authorization;
+  if (!authorization?.startsWith("Bearer ")) return null;
+  return authorization.slice("Bearer ".length).trim() || null;
+}
+
+export function getWayfareUserId(req: Request): string | null {
+  return (req as WayfareIdentityRequest).wayfareUserId ?? null;
+}
+
+export const attachFirebaseIdentity: RequestHandler = (req, res, next) => {
+  if (
+    req.path === "/healthz" ||
+    req.path === "/payments/callback" ||
+    req.path === "/payments/webhook"
+  ) {
+    next();
+    return;
+  }
+
+  const token = bearerToken(req);
+  if (!token) {
+    res.status(401).json({ error: "Sign in to continue." });
+    return;
+  }
+
+  void (async () => {
+    let decoded;
+    try {
+      decoded = await verifyFirebaseIdToken(token);
+    } catch {
+      res.status(401).json({ error: "Your sign-in has expired. Sign in again." });
+      return;
+    }
+
+    if (decoded.email_verified !== true || !decoded.email) {
+      res.status(403).json({ error: "Verify your email before using Wayfare." });
+      return;
+    }
+
+    try {
+      const existingProfile = await getFirebaseWayfareProfile(decoded.uid);
+      if (!existingProfile) {
+        const existingRows = await db
+          .select({ id: wayfareUsers.id })
+          .from(wayfareUsers)
+          .where(eq(wayfareUsers.id, decoded.uid))
+          .limit(1);
+        if (existingRows[0]) {
+          res.status(409).json({
+            error:
+              "This account has existing Wayfare records and needs a reviewed identity link.",
+          });
+          return;
+        }
+      }
+
+      const verifiedEmail = decoded.email.trim().toLowerCase();
+      const verifiedName =
+        (typeof decoded.name === "string" ? decoded.name.trim() : "") ||
+        verifiedEmail.split("@")[0] ||
+        "Wayfare rider";
+      const profile =
+        existingProfile &&
+        existingProfile.email === verifiedEmail &&
+        existingProfile.displayName === verifiedName
+          ? existingProfile
+          : await ensureFirebaseWayfareProfile(decoded);
+
+      const lastSyncedAt = userSyncCache.get(profile.uid) ?? 0;
+      if (lastSyncedAt <= Date.now()) {
+        await db
+          .insert(wayfareUsers)
+          .values({
+            id: profile.uid,
+            displayName: profile.displayName,
+            email: profile.email,
+            role: profile.role,
+            devVerified: true,
+            updatedAt: new Date(),
+          })
+          .onConflictDoUpdate({
+            target: wayfareUsers.id,
+            set: {
+              displayName: profile.displayName,
+              email: profile.email,
+              role: profile.role,
+              devVerified: true,
+              updatedAt: new Date(),
+            },
+          });
+        userSyncCache.set(profile.uid, Date.now() + USER_SYNC_CACHE_MS);
+        if (userSyncCache.size > 5_000) {
+          const now = Date.now();
+          for (const [uid, syncedAt] of userSyncCache) {
+            if (syncedAt <= now) userSyncCache.delete(uid);
+          }
+        }
+      }
+
+      (req as WayfareIdentityRequest).wayfareUserId = profile.uid;
+      next();
+    } catch (error) {
+      logger.error(
+        {
+          stage: "firebase_profile_or_user_sync",
+          errorType: error instanceof Error ? error.name : "UnknownError",
+        },
+        "Firebase-authenticated API request failed",
+      );
+      res.status(503).json({
+        error: "Wayfare identity data could not be loaded. Try again shortly.",
+      });
+    }
+  })();
+};

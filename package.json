@@ -1,0 +1,33 @@
+{
+  "name": "workspace",
+  "version": "0.0.0",
+  "license": "MIT",
+  "scripts": {
+    "preinstall": "node -e \"if (!(process.env.npm_config_user_agent || '').startsWith('pnpm/')) { console.error('Use pnpm instead'); process.exit(1); } const fs = require('node:fs'); for (const file of ['package-lock.json', 'yarn.lock']) fs.rmSync(file, { force: true });\"",
+    "build": "pnpm run typecheck && pnpm -r --if-present run build",
+    "dev:api": "pnpm --filter @workspace/api-server run dev",
+    "typecheck:libs": "tsc --build",
+    "typecheck": "pnpm run typecheck:libs && pnpm -r --filter \"./artifacts/**\" --filter \"./scripts\" --if-present run typecheck"
+  },
+  "private": true,
+  "pnpm": {
+    "overrides": {
+      "@grpc/grpc-js": "1.14.7",
+      "uuid": "11.1.1",
+      "minimatch": "11.0.8",
+      "esbuild@0.18.20": "0.28.2"
+    }
+  },
+  "dependencies": {
+    "@replit/connectors-sdk": "^0.4.3"
+  },
+  "devDependencies": {
+    "@esbuild/win32-x64": "0.28.2",
+    "@neon/config": "^1.10.0",
+    "@neon/env": "^1.6.8",
+    "lightningcss": "1.32.0",
+    "lightningcss-win32-x64-msvc": "1.32.0",
+    "prettier": "^3.9.6",
+    "typescript": "~5.9.3"
+  }
+}

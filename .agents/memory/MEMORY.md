@@ -1,0 +1,10 @@
+- [Wayfare preview routing](wayfare-preview-routing.md) — Expo Go must use the public host without `:8080`; keep the API on `/api` and Metro's port internal.
+- [Managed Expo preview workflow](wayfare-managed-expo-workflow.md) — restart the fully scoped artifact workflow name; avoid creating a short duplicate alias.
+- [Expo DevTools host libraries](wayfare-expo-devtools-runtime.md) — a native DevTools launcher library error can be separate from app rendering; inspect the actual Expo bundle before chasing system packages.
+- [Wayfare development schema sync](wayfare-development-db.md) — direct development changes must apply the Drizzle schema before auth exercises account persistence.
+- [Managed artifact services](managed-artifact-services.md) — keep generated artifact configuration under platform management; stop workflows before removing them.
+- [Admin web confirmations](admin-web-confirmations.md) — use in-app dialogs for admin decisions; native alerts do not render in the Expo web preview.
+- [Wayfare ride flow](wayfare-ride-flow.md) — keep rider matching, driver confirmation, payment, and live ride states as clear stages, not one dense trip screen.
+- [Wayfare auth and storage direction](wayfare-auth-storage-plan.md) — Firebase/Firestore own identity and roles; PostgreSQL remains the source of truth for operations.
+- [Wayfare Android project boundary](wayfare-android-project-boundary.md) — the Android rider app is separate; expose and document backend contracts here, wire its UI in its own project.
+- [Wayfare Return Rides](wayfare-return-rides.md) — Android Return Ride matching and pricing are built; preserve the return-request flag across the server API before calling it integrated.
