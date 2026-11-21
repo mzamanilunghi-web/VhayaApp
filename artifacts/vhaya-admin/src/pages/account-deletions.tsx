@@ -1,4 +1,5 @@
 import { useMemo, useState, type FormEvent } from "react";
+import { VhayaMark } from "@/components/vhaya-mark";
 import {
   AlertCircle,
   ArrowLeft,
@@ -69,7 +70,7 @@ function pseudonymizedState(request: AccountDeletionRequest): boolean | null {
 function Brand() {
   return (
     <div className="review-brand" aria-label="Vhaya staff">
-      <div className="review-brand-mark">V</div>
+      <VhayaMark className="review-brand-mark" />
       <div>
         <div className="review-brand-name">Vhaya</div>
         <div className="review-brand-subtitle">staff desk</div>

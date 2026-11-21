@@ -1,5 +1,6 @@
 import { useMemo, useState, type FormEvent, type ReactNode } from "react";
 import { Link } from "wouter";
+import { VhayaMark } from "@/components/vhaya-mark";
 import {
   AlertCircle, BadgePercent, CalendarDays, Check, ChevronLeft, ChevronRight, CircleDollarSign,
   CreditCard, Edit3, Plus, Search, ShieldCheck, ToggleLeft, ToggleRight, Users, X,
@@ -265,7 +266,7 @@ export default function SubscriptionsPage() {
 
   return <div className="billing-page">
     <header className="billing-top">
-      <Link href="/" className="billing-brand"><span className="brand-mark">V</span><span>vhaya<small>operations</small></span></Link>
+      <Link href="/" className="billing-brand"><VhayaMark className="brand-mark" /><span>vhaya<small>operations</small></span></Link>
       <nav className="billing-nav" aria-label="Operations navigation">{nav.map(([href, label]) => <Link href={href} key={href} className={href === "/subscriptions" ? "active" : ""} data-testid={`nav-${label.toLowerCase().replaceAll(" ", "-")}`}>{label}</Link>)}</nav>
       <div className="billing-user"><span className="secure-dot" /><span>{auth.admin?.displayName ?? "Staff"}</span><button className="button small" onClick={() => void auth.signOut()} data-testid="button-signout-billing">Sign out</button></div>
     </header>

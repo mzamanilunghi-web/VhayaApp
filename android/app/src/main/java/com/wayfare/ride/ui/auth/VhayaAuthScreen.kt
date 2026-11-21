@@ -371,7 +371,7 @@ fun VhayaAuthScreen(
                                         modifier = Modifier.size(48.dp)
                                     ) {
                                         Image(
-                                            painter = painterResource(id = R.drawable.img_vhaya_launcher),
+                                            painter = painterResource(id = R.drawable.vhaya_mark_full),
                                             contentDescription = "Vhaya logo",
                                             contentScale = ContentScale.Crop,
                                             modifier = Modifier

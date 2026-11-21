@@ -3,6 +3,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ErrorBoundary } from '@/components/error-boundary';
 import { Toaster } from '@/components/ui/toaster';
 import { TooltipProvider } from '@/components/ui/tooltip';
+import { VhayaMark } from '@/components/vhaya-mark';
 import DriverReview from '@/pages/driver-review';
 import AccountDeletions from '@/pages/account-deletions';
 import { AuthProvider } from '@/lib/auth-context';
@@ -56,7 +57,7 @@ function AdminOnly({ children }: { children: ReactNode }) {
 
 function WorkspaceLoading() {
   return <div className="auth-screen" role="status" data-testid="loading-admin-workspace">
-    <section className="auth-card"><div className="brand"><span className="brand-mark">V</span><span><span className="brand-name">vhaya</span><span className="brand-sub">operations</span></span></div>
+    <section className="auth-card"><div className="brand"><VhayaMark className="brand-mark" /><span><span className="brand-name">vhaya</span><span className="brand-sub">operations</span></span></div>
       <div className="auth-skeleton" /><p>Loading admin workspace…</p>
     </section>
   </div>;

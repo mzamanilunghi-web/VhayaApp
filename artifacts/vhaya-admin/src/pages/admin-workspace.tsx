@@ -1,5 +1,6 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { Link, useLocation } from "wouter";
+import { VhayaMark } from "@/components/vhaya-mark";
 import {
   Bar,
   BarChart,
@@ -60,7 +61,7 @@ export function PageFrame({ title, subtitle, eyebrow, children }: { title: strin
   const [path] = useLocation(); const auth = useAuth();
   return <div className="vhaya">
     <header className="global-header">
-      <Link href="/" className="brand"><span className="brand-mark">V</span><span><b>vhaya</b><small>operations</small></span></Link>
+      <Link href="/" className="brand"><VhayaMark className="brand-mark" /><span><b>vhaya</b><small>operations</small></span></Link>
       <nav className="global-nav" aria-label="Operations navigation">{links.map(([href, label]) =>
         <Link href={href} key={href} className={`global-nav-link ${path === href ? "active" : ""}`} data-testid={`nav-${label.toLowerCase().replaceAll(" ", "-")}`}>{label}</Link>)}</nav>
       <div className="global-user"><span className="secure-dot"/><span>{auth.admin?.displayName ?? "Staff"}</span><button className="button small" onClick={() => void auth.signOut()} data-testid="button-signout">Sign out</button></div>
