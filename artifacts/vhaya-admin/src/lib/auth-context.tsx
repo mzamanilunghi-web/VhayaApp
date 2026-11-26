@@ -90,6 +90,13 @@ function errorMessage(error: unknown): string {
     }
   }
 
+  if (
+    error instanceof TypeError &&
+    /failed to fetch/i.test(error.message)
+  ) {
+    return "Firebase sign-in could not reach Firebase Authentication. Check the connection and Firebase authorized domains.";
+  }
+
   return error instanceof Error ? error.message : "Something went wrong. Try again.";
 }
 

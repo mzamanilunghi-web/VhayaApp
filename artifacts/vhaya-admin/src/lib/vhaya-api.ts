@@ -526,17 +526,30 @@ async function request<T>(
     headers.set("Content-Type", "application/json");
   }
   if (user) {
-    headers.set("Authorization", `Bearer ${await user.getIdToken()}`);
+    try {
+      headers.set("Authorization", `Bearer ${await user.getIdToken()}`);
+    } catch {
+      throw new Error(
+        "Firebase could not provide a sign-in token. Check the Firebase session and network.",
+      );
+    }
   }
   if (sessionId) {
     headers.set("x-wayfare-session", sessionId);
   }
 
-  const response = await fetch(`${requireApiBase()}${path}`, {
-    ...init,
-    headers,
-    credentials: "omit",
-  });
+  let response: Response;
+  try {
+    response = await fetch(`${requireApiBase()}${path}`, {
+      ...init,
+      headers,
+      credentials: "omit",
+    });
+  } catch {
+    throw new Error(
+      "The Vhaya API could not be reached from this preview. Check the preview connection and retry.",
+    );
+  }
   return readResponse<T>(response);
 }
 
