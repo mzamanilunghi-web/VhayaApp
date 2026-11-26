@@ -538,16 +538,22 @@ async function request<T>(
     headers.set("x-wayfare-session", sessionId);
   }
 
+  const apiBase = requireApiBase();
+  const requestUrl = `${apiBase}${path}`;
   let response: Response;
   try {
-    response = await fetch(`${requireApiBase()}${path}`, {
+    response = await fetch(requestUrl, {
       ...init,
       headers,
       credentials: "omit",
     });
   } catch {
+    const route =
+      typeof window === "undefined"
+        ? path.split("?")[0]
+        : new URL(requestUrl, window.location.href).pathname;
     throw new Error(
-      "The Vhaya API could not be reached from this preview. Check the preview connection and retry.",
+      `The Vhaya API request ${(init.method ?? "GET").toUpperCase()} ${route} could not be reached from this preview.`,
     );
   }
   return readResponse<T>(response);
