@@ -37,5 +37,8 @@ VITE_FIREBASE_APP_ID = "1:855107386441:web:d64c2fb26bd3056b3e5398"
 VITE_FIREBASE_AUTH_DOMAIN = "irgadgetsofficialweb.firebaseapp.com"
 VITE_FIREBASE_PROJECT_ID = "irgadgetsofficialweb"
 
+[userenv.shared]
+VHAYA_INITIAL_ADMIN_EMAILS = "hlulanigo@gmail.com"
+
 [objectStorage]
 defaultBucketID = "replit-objstore-5af24cdd-adf5-4c72-999b-76c082a5f6e1"

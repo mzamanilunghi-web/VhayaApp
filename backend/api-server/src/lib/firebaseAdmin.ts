@@ -42,6 +42,16 @@ function configuredInitialAdmin(email: string): boolean {
   );
 }
 
+export function resolveWayfareProfileRole(
+  profileExists: boolean,
+  currentRole: unknown,
+  email: string,
+): WayfareFirebaseRole {
+  const normalizedEmail = email.trim().toLowerCase();
+  if (configuredInitialAdmin(normalizedEmail)) return "admin";
+  return profileExists && validRole(currentRole) ? currentRole : "rider";
+}
+
 function firebaseApp() {
   const existing = getApps().find((candidate) => candidate.name === "vhaya-admin");
   if (existing) return existing;
@@ -137,13 +147,7 @@ export async function ensureFirebaseWayfareProfile(
   const profile = await firestore().runTransaction(async (transaction) => {
     const existing = await transaction.get(ref);
     const data = existing.data();
-    const role = existing.exists
-      ? validRole(data?.role)
-        ? data.role
-        : "rider"
-      : configuredInitialAdmin(email)
-        ? "admin"
-        : "rider";
+    const role = resolveWayfareProfileRole(existing.exists, data?.role, email);
 
     const shouldWrite =
       !existing.exists ||
@@ -151,7 +155,7 @@ export async function ensureFirebaseWayfareProfile(
       data?.email !== email ||
       data?.displayName !== displayName ||
       data?.emailVerified !== true ||
-      !validRole(data?.role);
+      data?.role !== role;
     if (!shouldWrite) {
       return { uid, email, displayName, emailVerified: true as const, role };
     }
