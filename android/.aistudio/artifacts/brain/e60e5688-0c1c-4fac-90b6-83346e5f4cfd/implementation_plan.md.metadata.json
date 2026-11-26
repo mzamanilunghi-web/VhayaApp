@@ -1,6 +1,0 @@
-{
-  "summary":  "Revised Vhaya frontend UX simplification plan adding 1-tap Google Sign-In via Credential Manager + Firebase signInWithIdp alongside progressive disclosure across Auth, Rider, Driver, Account, and Admin screens.",
-  "updatedAt":  "2026-11-20T00:22:37.086533239Z",
-  "requestFeedback":  true,
-  "userFacing":  true
-}

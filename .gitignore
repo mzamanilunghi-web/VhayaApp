@@ -1,16 +1,13 @@
-# See https://docs.github.com/en/get-started/getting-started-with-git/ignoring-files for more about ignoring files.
-
-# compiled output
-dist
-tmp
-out-tsc
-*.tsbuildinfo
-
-# dependencies
-node_modules
-/android/.gradle/
-/android/**/build/
-/android/local.properties
+# Android & Gradle
+/.gradle/
+/build/
+/app/build/
+**/build/
+/local.properties
+*.apk
+*.aab
+*.ap_
+*.dex
 
 # IDEs and editors
 /.idea
@@ -20,40 +17,17 @@ node_modules
 *.launch
 .settings/
 *.sublime-workspace
-
-# IDE - VSCode
 .vscode/*
 !.vscode/settings.json
 !.vscode/tasks.json
 !.vscode/launch.json
 !.vscode/extensions.json
 
-# misc
-/.sass-cache
-/connect.lock
-/coverage
-/libpeerconnection.log
-npm-debug.log
-yarn-error.log
-testem.log
-/typings
-
 # System Files
 .DS_Store
 Thumbs.db
-
-.cursor/rules/nx-rules.mdc
-.github/instructions/nx.instructions.md
-
-# Replit
-.cache/
-.local/
 
 # Local environment values
 .env
 .env.*
 !.env.example
-
-# Firebase project settings are stored in Replit Secrets
-firebase.md
-.neon

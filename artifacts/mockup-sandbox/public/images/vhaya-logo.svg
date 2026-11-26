@@ -1,7 +1,0 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 840 198" role="img" aria-labelledby="title">
-  <title id="title">Vhaya</title>
-  <path d="M18 164c39 0 32-30 61-43l27-12c24-11 14-35 39-51" fill="none" stroke="#1c2621" stroke-linecap="round" stroke-width="25"/>
-  <path d="M154 14c-26 0-47 20-47 46 0 34 47 80 47 80s47-46 47-80c0-26-21-46-47-46Z" fill="#f16b4c"/>
-  <circle cx="154" cy="60" r="12" fill="#fffefa"/>
-  <text x="238" y="133" fill="#141c18" font-family="Arial, Helvetica, sans-serif" font-size="104" font-weight="700" letter-spacing="-5">Vhaya</text>
-</svg>
