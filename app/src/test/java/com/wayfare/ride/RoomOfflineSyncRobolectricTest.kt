@@ -636,7 +636,8 @@ class RoomOfflineSyncRobolectricTest {
                 WayfareMigrations.MIGRATION_7_8,
                 WayfareMigrations.MIGRATION_8_9,
                 WayfareMigrations.MIGRATION_9_10,
-                WayfareMigrations.MIGRATION_10_11
+                WayfareMigrations.MIGRATION_10_11,
+                WayfareMigrations.MIGRATION_11_12
             )
             .build()
 

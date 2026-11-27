@@ -1,6 +1,7 @@
 package com.wayfare.ride
 
 import android.content.Context
+import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.test.assertHasClickAction
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsEnabled
@@ -14,6 +15,7 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performScrollToNode
+import androidx.compose.ui.test.performSemanticsAction
 import androidx.compose.ui.test.performTextInput
 import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
@@ -24,7 +26,11 @@ import com.wayfare.ride.data.WayfareDatabase
 import com.wayfare.ride.data.WayfareRepository
 import com.wayfare.ride.domain.AuthState
 import com.wayfare.ride.domain.DriverCorridorTarget
+import com.wayfare.ride.domain.DriverPocketRoute
 import com.wayfare.ride.domain.PaymentMethod
+import com.wayfare.ride.domain.PocketItem
+import com.wayfare.ride.domain.PocketItemSize
+import com.wayfare.ride.domain.PocketItemStatus
 import com.wayfare.ride.domain.RideCategory
 import com.wayfare.ride.domain.RideCoordinates
 import com.wayfare.ride.domain.RideRole
@@ -35,6 +41,9 @@ import com.wayfare.ride.ui.WayfareUiState
 import com.wayfare.ride.ui.WayfareViewModel
 import com.wayfare.ride.ui.auth.VhayaAuthScreen
 import com.wayfare.ride.ui.common.AccountAndPlacesSheet
+import com.wayfare.ride.ui.common.DriverPocketSheet
+import com.wayfare.ride.ui.common.RiderPocketSheet
+import com.wayfare.ride.ui.driver.CorridorFilterSheet
 import com.wayfare.ride.ui.driver.DriverGtwNavBanner
 import com.wayfare.ride.ui.driver.DriverMapFeaturePillRow
 import com.wayfare.ride.ui.driver.DriverProfileTab
@@ -478,5 +487,188 @@ class FrontendSimplificationTest {
         assertTrue(backendAccountDeleted.get())
         assertTrue(firebaseAccountDeleted.get())
         assertTrue(repo.authState.value is AuthState.Unauthenticated)
+    }
+
+    @Test
+    fun `corridor filter sheet shows recent gtw presets, arrive by chips, pocket bridge and offline cache button`() {
+        val mankweng = RideCoordinates(-23.8880, 29.7240)
+        val seshego = RideCoordinates(-23.8290, 29.3570)
+        val current = DriverCorridorTarget("Mankweng", mankweng, 6.0, strictFilter = true)
+        val recent = listOf(DriverCorridorTarget("Seshego", seshego, 4.0, strictFilter = false))
+        var selectedTarget: DriverCorridorTarget? = current
+        var pocketOpened = false
+        var cacheTriggered = false
+
+        composeRule.setContent {
+            WayfareTheme {
+                CorridorFilterSheet(
+                    currentTarget = current,
+                    onSelectTarget = { selectedTarget = it },
+                    onPickOnMap = { _, _ -> },
+                    onDismiss = {},
+                    driverCoords = RideCoordinates(-23.9045, 29.4689),
+                    gtwMatchedCount = 3,
+                    recentTargets = recent,
+                    matchingPocketCount = 2,
+                    onOpenPocketBoard = { pocketOpened = true },
+                    onCacheCorridorTiles = { cacheTriggered = true }
+                )
+            }
+        }
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithTag("gtw_sheet_pocket_btn").performScrollTo().assertIsDisplayed()
+        composeRule.onNodeWithTag("gtw_cache_tiles_btn")
+            .performScrollTo()
+            .assertIsDisplayed()
+            .assertIsEnabled()
+            .assertHasClickAction()
+            .performSemanticsAction(SemanticsActions.OnClick)
+        composeRule.waitForIdle()
+        assertTrue(cacheTriggered)
+
+        composeRule.onNodeWithTag("gtw_arrive_chip_45")
+            .performScrollTo()
+            .assertIsDisplayed()
+            .assertHasClickAction()
+            .performSemanticsAction(SemanticsActions.OnClick)
+        composeRule.waitForIdle()
+        assertTrue((selectedTarget?.arriveByEpochMs ?: 0L) > 0L)
+
+        composeRule.onNodeWithTag("gtw_recent_chip_0")
+            .performScrollTo()
+            .assertIsDisplayed()
+            .assertHasClickAction()
+            .performSemanticsAction(SemanticsActions.OnClick)
+        composeRule.waitForIdle()
+        assertEquals("Seshego", selectedTarget?.label)
+
+        composeRule.onNodeWithTag("gtw_sheet_pocket_btn")
+            .performScrollTo()
+            .assertIsEnabled()
+            .assertHasClickAction()
+            .performSemanticsAction(SemanticsActions.OnClick)
+        composeRule.waitForIdle()
+        assertTrue(pocketOpened)
+    }
+
+    @Test
+    fun `driver pocket sheet opens to corridor board and claims listed item cleanly`() {
+        val sampleRoute = DriverPocketRoute(
+            id = "route-ui-1",
+            driverId = "drv-1",
+            driverName = "Sello",
+            driverPhone = "082 111 2222",
+            vehicleModel = "Hilux",
+            vehicleColor = "White",
+            originLabel = "Malamulele",
+            originCoordinates = RideCoordinates(-23.005, 30.692),
+            destinationLabel = "Tembisa",
+            destinationCoordinates = RideCoordinates(-25.996, 28.227),
+            departureTimeLabel = "Today 15:00",
+            departureTimestampMs = System.currentTimeMillis() + 3_600_000L,
+            totalSeats = 3,
+            availableSeats = 2,
+            seatPriceZar = 250.0,
+            totalParcelSlots = 4,
+            availableParcelSlots = 3,
+            baseParcelPriceZar = 120.0
+        )
+        val boardItem = PocketItem(
+            id = "item-board-1",
+            senderName = "Khensani",
+            senderPhone = "083 444 5555",
+            originLabel = "Polokwane",
+            originCoordinates = RideCoordinates(-23.9045, 29.4689),
+            destinationLabel = "Mankweng",
+            destinationCoordinates = RideCoordinates(-23.8880, 29.7240),
+            itemDescription = "Laptop charger parcel",
+            size = PocketItemSize.ENVELOPE,
+            fareZar = 50.0,
+            status = PocketItemStatus.LISTED
+        )
+
+        var claimedId: String? = null
+        composeRule.setContent {
+            WayfareTheme {
+                DriverPocketSheet(
+                    pocketRoutes = listOf(sampleRoute),
+                    pocketItems = listOf(boardItem),
+                    onClose = {},
+                    onCreateRoute = { _, _, _, _, _, _, _, _ -> },
+                    onClaimItem = { claimedId = it },
+                    onUpdateItemStatus = { _, _ -> },
+                    onNotifySendersAndDepart = {},
+                    initialTab = 1
+                )
+            }
+        }
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithTag("driver_pocket_sheet").assertIsDisplayed()
+        composeRule.onNodeWithTag("pocket_item_card_item-board-1").assertIsDisplayed()
+        composeRule.onNodeWithText("Claim into My Pocket")
+            .assertIsDisplayed()
+            .assertIsEnabled()
+            .assertHasClickAction()
+            .performSemanticsAction(SemanticsActions.OnClick)
+        composeRule.waitForIdle()
+        assertEquals("item-board-1", claimedId)
+    }
+
+    @Test
+    fun `rider pocket sheet renders active corridor routes cleanly`() {
+        val sampleRoute = DriverPocketRoute(
+            id = "route-ui-1",
+            driverId = "drv-1",
+            driverName = "Sello",
+            driverPhone = "082 111 2222",
+            vehicleModel = "Hilux",
+            vehicleColor = "White",
+            originLabel = "Malamulele",
+            originCoordinates = RideCoordinates(-23.005, 30.692),
+            destinationLabel = "Tembisa",
+            destinationCoordinates = RideCoordinates(-25.996, 28.227),
+            departureTimeLabel = "Today 15:00",
+            departureTimestampMs = System.currentTimeMillis() + 3_600_000L,
+            totalSeats = 3,
+            availableSeats = 2,
+            seatPriceZar = 250.0,
+            totalParcelSlots = 4,
+            availableParcelSlots = 3,
+            baseParcelPriceZar = 120.0
+        )
+        val boardItem = PocketItem(
+            id = "item-board-1",
+            senderName = "Khensani",
+            senderPhone = "083 444 5555",
+            originLabel = "Polokwane",
+            originCoordinates = RideCoordinates(-23.9045, 29.4689),
+            destinationLabel = "Mankweng",
+            destinationCoordinates = RideCoordinates(-23.8880, 29.7240),
+            itemDescription = "Laptop charger parcel",
+            size = PocketItemSize.ENVELOPE,
+            fareZar = 50.0,
+            status = PocketItemStatus.LISTED
+        )
+
+        composeRule.setContent {
+            WayfareTheme {
+                RiderPocketSheet(
+                    pocketRoutes = listOf(sampleRoute),
+                    pocketItems = listOf(boardItem),
+                    onClose = {},
+                    onAddParcelToPocket = { _, _, _, _, _ -> },
+                    onPostPocketRequest = { _, _, _, _, _, _, _ -> },
+                    onSelectRoute = {}
+                )
+            }
+        }
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithTag("rider_pocket_sheet").assertIsDisplayed()
+        composeRule.onNodeWithTag("pocket_route_route-ui-1").assertIsDisplayed()
+        composeRule.onNodeWithText("Malamulele").assertIsDisplayed()
+        composeRule.onNodeWithText("Tembisa").assertIsDisplayed()
     }
 }

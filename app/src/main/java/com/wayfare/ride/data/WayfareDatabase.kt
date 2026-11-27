@@ -23,7 +23,7 @@ import androidx.room.TypeConverters
         CachedPlaceEntity::class,
         RoadHazardEntity::class
     ],
-    version = 11,
+    version = 12,
     exportSchema = false
 )
 @TypeConverters(WayfareTypeConverters::class)
@@ -58,7 +58,8 @@ abstract class WayfareDatabase : RoomDatabase() {
                         WayfareMigrations.MIGRATION_7_8,
                         WayfareMigrations.MIGRATION_8_9,
                         WayfareMigrations.MIGRATION_9_10,
-                        WayfareMigrations.MIGRATION_10_11
+                        WayfareMigrations.MIGRATION_10_11,
+                        WayfareMigrations.MIGRATION_11_12
                     )
                     .fallbackToDestructiveMigrationFrom(true, 1, 2, 3, 4, 5, 6)
                     .build()

@@ -48,6 +48,8 @@ private inline fun <reified T : Enum<T>> parseEnum(raw: String, fallback: T): T 
 data class TripEntity(
     @PrimaryKey val id: String,
     val riderId: String,
+    val riderName: String? = null,
+    val riderPhone: String? = null,
     val driverId: String?,
     val pickup: String,
     val destination: String,
@@ -306,6 +308,8 @@ class WayfareTypeConverters {
 fun TripEntity.toDomain(): RideTrip = RideTrip(
     id = id,
     riderId = riderId,
+    riderName = riderName,
+    riderPhone = riderPhone,
     driverId = driverId,
     pickup = pickup,
     destination = destination,
@@ -352,6 +356,8 @@ fun TripEntity.toDomain(): RideTrip = RideTrip(
 fun RideTrip.toEntity(): TripEntity = TripEntity(
     id = id,
     riderId = riderId,
+    riderName = riderName,
+    riderPhone = riderPhone,
     driverId = driverId,
     pickup = pickup,
     destination = destination,

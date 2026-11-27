@@ -113,6 +113,13 @@ object WayfareMigrations {
             db.execSQL("ALTER TABLE trips ADD COLUMN isReturnRequest INTEGER NOT NULL DEFAULT 0")
         }
     }
+
+    val MIGRATION_11_12 = object : Migration(11, 12) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL("ALTER TABLE trips ADD COLUMN riderName TEXT")
+            db.execSQL("ALTER TABLE trips ADD COLUMN riderPhone TEXT")
+        }
+    }
 }
 
 class OfflineSyncCoordinator(

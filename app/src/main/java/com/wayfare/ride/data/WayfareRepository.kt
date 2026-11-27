@@ -106,6 +106,7 @@ import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
+import kotlinx.serialization.json.putJsonArray
 import java.io.ByteArrayOutputStream
 import java.util.Locale
 import java.util.UUID
@@ -191,8 +192,13 @@ class WayfareRepository(
     private val _trustedDrivers = MutableStateFlow(sessionStore.loadTrustedDrivers())
     val trustedDrivers: StateFlow<List<TrustedCommunityDriver>> = _trustedDrivers.asStateFlow()
 
-    private val _driverCorridorTarget = MutableStateFlow(sessionStore.loadDriverCorridorTarget())
+    private val _driverCorridorTarget = MutableStateFlow(
+        sessionStore.loadDriverCorridorTarget()?.takeUnless { it.isExpired() }
+    )
     val driverCorridorTarget: StateFlow<DriverCorridorTarget?> = _driverCorridorTarget.asStateFlow()
+
+    private val _recentGtwTargets = MutableStateFlow(sessionStore.loadRecentGtwTargets())
+    val recentGtwTargets: StateFlow<List<DriverCorridorTarget>> = _recentGtwTargets.asStateFlow()
 
     private val _driverQueuedReturnTripId = MutableStateFlow(sessionStore.loadDriverQueuedReturnTripId())
     val driverQueuedReturnTripId: StateFlow<String?> = _driverQueuedReturnTripId.asStateFlow()
@@ -390,18 +396,29 @@ class WayfareRepository(
         val cleaned = normalizeCorridorTarget(target)
         sessionStore.saveDriverCorridorTarget(cleaned)
         _driverCorridorTarget.value = cleaned
+        if (cleaned != null) {
+            _recentGtwTargets.value = sessionStore.saveRecentGtwTarget(cleaned)
+        }
     }
 
     suspend fun syncDriverCorridorTarget(target: DriverCorridorTarget?): DriverCorridorTarget? {
         val cleaned = normalizeCorridorTarget(target)
         sessionStore.saveDriverCorridorTarget(cleaned)
         _driverCorridorTarget.value = cleaned
+        if (cleaned != null) {
+            _recentGtwTargets.value = sessionStore.saveRecentGtwTarget(cleaned)
+        }
         if (_authState.value is AuthState.Authenticated && _apiBaseUrl.value.trim().isNotBlank()) {
             withValidToken { apiUrl, token, _ ->
                 apiClient.saveDriverGtwTarget(apiUrl, token, cleaned)
                     .onSuccess { outcome ->
                         if (outcome is VhayaApiClient.GtwSyncOutcome.Supported && _driverCorridorTarget.value == cleaned) {
-                            val synced = outcome.target
+                            val synced = outcome.target?.let {
+                                it.copy(
+                                    arriveByEpochMs = it.arriveByEpochMs ?: cleaned?.arriveByEpochMs,
+                                    expiresAtMs = it.expiresAtMs ?: cleaned?.expiresAtMs
+                                )
+                            }
                             sessionStore.saveDriverCorridorTarget(synced)
                             _driverCorridorTarget.value = synced
                         }
@@ -410,6 +427,14 @@ class WayfareRepository(
             }
         }
         return _driverCorridorTarget.value
+    }
+
+    fun clearExpiredGtwTargetIfNeeded(nowMs: Long = System.currentTimeMillis()): DriverCorridorTarget? {
+        val current = _driverCorridorTarget.value ?: return null
+        if (!current.isExpired(nowMs)) return null
+        sessionStore.saveDriverCorridorTarget(null)
+        _driverCorridorTarget.value = null
+        return current
     }
 
     private fun normalizeCorridorTarget(target: DriverCorridorTarget?): DriverCorridorTarget? {
@@ -594,6 +619,68 @@ class WayfareRepository(
         return updatedItem
     }
 
+    fun reserveSeatInDriverPocket(
+        routeId: String,
+        seatCount: Int = 1,
+        passengerName: String = "",
+        passengerPhone: String = "",
+        pickupNote: String = ""
+    ): PocketItem? {
+        val cleanSeats = seatCount.coerceIn(1, 4)
+        val route = _pocketRoutes.value.firstOrNull { it.id == routeId } ?: return null
+        if (route.availableSeats < cleanSeats) return null
+        val session = (authState.value as? AuthState.Authenticated)?.session ?: sessionStore.loadSession()
+        val resolvedName = passengerName.trim().ifBlank {
+            session?.displayName?.takeIf { it.isNotBlank() } ?: "Vhaya Passenger"
+        }
+        val cleanNote = pickupNote.trim()
+        val seatLabel = if (cleanSeats == 1) "1 seat reserved" else "$cleanSeats seats reserved"
+        val item = PocketItem(
+            id = "pocket_seat_${System.currentTimeMillis()}",
+            type = PocketItemType.SEAT,
+            senderName = resolvedName,
+            senderPhone = passengerPhone.trim().ifBlank { "+27 71 000 0000" },
+            recipientName = resolvedName,
+            recipientPhone = passengerPhone.trim(),
+            originLabel = route.originLabel,
+            originCoordinates = route.originCoordinates,
+            destinationLabel = route.destinationLabel,
+            destinationCoordinates = route.destinationCoordinates,
+            itemDescription = if (cleanNote.isNotBlank()) "$seatLabel · $cleanNote" else "$seatLabel with ${route.driverName}",
+            size = PocketItemSize.ENVELOPE,
+            fareZar = route.seatPriceZar * cleanSeats,
+            assignedDriverRouteId = route.id,
+            assignedDriverName = route.driverName,
+            status = PocketItemStatus.RESERVED,
+            recipientPin = (1000..9999).random().toString(),
+            scheduledDepartureNote = route.departureTimeLabel
+        )
+        val updatedItems = listOf(item) + _pocketItems.value
+        _pocketItems.value = updatedItems
+        sessionStore.savePocketItems(updatedItems)
+
+        val updatedRoutes = _pocketRoutes.value.map { r ->
+            if (r.id == routeId) r.copy(availableSeats = (r.availableSeats - cleanSeats).coerceAtLeast(0))
+            else r
+        }
+        _pocketRoutes.value = updatedRoutes
+        sessionStore.savePocketRoutes(updatedRoutes)
+        return item
+    }
+
+    fun verifyPocketItemPinAndDeliver(itemId: String, enteredPin: String): Result<PocketItem> {
+        val cleanPin = enteredPin.filter { it.isDigit() }.trim()
+        val target = _pocketItems.value.firstOrNull { it.id == itemId }
+            ?: return Result.failure(IllegalArgumentException("Pocket item not found."))
+        val expected = target.recipientPin.filter { it.isDigit() }.trim()
+        if (expected.isNotBlank() && cleanPin != expected) {
+            return Result.failure(IllegalArgumentException("Incorrect 4-digit PIN. Ask the recipient or sender to confirm."))
+        }
+        val delivered = updatePocketItemStatus(itemId, PocketItemStatus.DELIVERED)
+            ?: return Result.failure(IllegalStateException("Could not mark item delivered."))
+        return Result.success(delivered)
+    }
+
     suspend fun reportRoadHazard(
         type: HazardType,
         coords: RideCoordinates,
@@ -687,6 +774,26 @@ class WayfareRepository(
         val updated = _driverRiderRatings.value + (tripId to entry)
         sessionStore.saveDriverRiderRatings(updated)
         _driverRiderRatings.value = updated
+    }
+
+    suspend fun syncDriverRiderRating(tripId: String, stars: Int, tags: List<String>) {
+        val cleanTags = tags.map { it.trim() }.filter { it.isNotEmpty() }.distinct()
+        withValidToken { apiUrl, token, _ ->
+            apiClient.performRideAction(
+                apiUrl,
+                token,
+                tripId,
+                buildJsonObject {
+                    put("action", "rateRider")
+                    put("rating", stars.coerceIn(1, 5))
+                    if (cleanTags.isNotEmpty()) {
+                        putJsonArray("tags") {
+                            cleanTags.forEach { add(kotlinx.serialization.json.JsonPrimitive(it)) }
+                        }
+                    }
+                }
+            )
+        }
     }
 
     fun isDriverTrusted(driverId: String?): Boolean {
@@ -1506,9 +1613,15 @@ class WayfareRepository(
                 gtwJob.await()
                     ?.onSuccess { outcome ->
                         if (outcome is VhayaApiClient.GtwSyncOutcome.Supported) {
-                            val remote = outcome.target
+                            val remote = outcome.target?.takeUnless { it.isExpired() }
                             val local = _driverCorridorTarget.value
-                            if (remote != null || (local != null && local.updatedAtMs == 0L)) {
+                            val shouldAdoptRemote = when {
+                                local == null -> remote != null
+                                local.updatedAtMs == 0L -> true
+                                remote != null -> remote.updatedAtMs >= local.updatedAtMs
+                                else -> false
+                            }
+                            if (shouldAdoptRemote) {
                                 sessionStore.saveDriverCorridorTarget(remote)
                                 _driverCorridorTarget.value = remote
                             }
@@ -2200,9 +2313,15 @@ class WayfareRepository(
         }).onSuccess { refreshActiveSessionData() }
 
     suspend fun rateTrip(tripId: String, stars: Int, feedbackTags: List<String> = emptyList()): Result<RideTrip> {
+        val cleanTags = feedbackTags.map { it.trim() }.filter { it.isNotEmpty() }.distinct()
         val res = performRideActionAndCache(tripId, buildJsonObject {
             put("action", "rate")
             put("rating", stars.coerceIn(1, 5))
+            if (cleanTags.isNotEmpty()) {
+                putJsonArray("feedbackTags") {
+                    cleanTags.forEach { add(kotlinx.serialization.json.JsonPrimitive(it)) }
+                }
+            }
         })
         if (res.isFailure && isTransientNetworkFailure(res.exceptionOrNull())) {
             enqueueOfflineAction(
@@ -2210,11 +2329,44 @@ class WayfareRepository(
                     id = "rate-$tripId-${System.currentTimeMillis()}",
                     kind = "trip_rate",
                     tripId = tripId,
-                    rating = stars.coerceIn(1, 5)
+                    rating = stars.coerceIn(1, 5),
+                    feedbackTags = cleanTags
                 )
             )
         }
         return res
+    }
+
+    suspend fun boostTripFare(tripId: String, newFareZar: Double): Result<RideTrip> {
+        val cleanFare = kotlin.math.round(newFareZar.coerceAtLeast(20.0) * 100.0) / 100.0
+        return performRideActionAndCache(
+            tripId,
+            buildJsonObject {
+                put("action", "boostFare")
+                put("fare", cleanFare)
+            }
+        )
+    }
+
+    suspend fun updateTripPickupNote(tripId: String, note: String): Result<RideTrip> {
+        val clean = note.trim().take(140)
+        return performRideActionAndCache(
+            tripId,
+            buildJsonObject {
+                put("action", "updatePickupNote")
+                put("pickupNote", clean)
+            }
+        )
+    }
+
+    suspend fun withdrawDriverOffer(tripId: String, offerId: String): Result<RideTrip> {
+        return performRideActionAndCache(
+            tripId,
+            buildJsonObject {
+                put("action", "withdrawOffer")
+                put("offerId", offerId)
+            }
+        )
     }
 
     suspend fun sendTripMessage(tripId: String, text: String): Result<RideTrip> {
@@ -3351,6 +3503,11 @@ class WayfareRepository(
                                     buildJsonObject {
                                         put("action", "rate")
                                         put("rating", action.rating)
+                                        if (action.feedbackTags.isNotEmpty()) {
+                                            putJsonArray("feedbackTags") {
+                                                action.feedbackTags.forEach { add(kotlinx.serialization.json.JsonPrimitive(it)) }
+                                            }
+                                        }
                                     }
                                 )
                             }

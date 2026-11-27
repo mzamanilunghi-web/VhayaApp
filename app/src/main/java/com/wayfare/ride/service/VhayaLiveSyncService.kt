@@ -10,6 +10,7 @@ import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
 import com.wayfare.ride.WayfareApplication
 import com.wayfare.ride.domain.AuthState
+import com.wayfare.ride.domain.DriverMapEngine
 import com.wayfare.ride.domain.LaunchPolicy
 import com.wayfare.ride.domain.ReturnRideEngine
 import com.wayfare.ride.domain.RideRole
@@ -18,6 +19,7 @@ import com.wayfare.ride.domain.RideTrip
 import com.wayfare.ride.notifications.RideNotificationHelper
 import com.wayfare.ride.notifications.RiderNotificationSpec
 import com.wayfare.ride.notifications.SupportNotificationHelper
+import com.wayfare.ride.ui.components.resolveBestLastKnownLocation
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -215,17 +217,31 @@ class VhayaLiveSyncService : Service() {
                                 lastNotifiedDriverTripId = null
                             }
                         } else {
+                            val activeGtw = repo.driverCorridorTarget.value?.takeUnless { it.isExpired(nowMs) }
+                            val driverLoc = resolveBestLastKnownLocation(this@VhayaLiveSyncService)
                             val nextOffer = RideNotificationHelper.pickNextEligibleOffer(
                                 trips = trips,
                                 declinedIds = repo.declinedDriverTripIds.value,
-                                nowMs = nowMs
+                                driverCoords = driverLoc,
+                                nowMs = nowMs,
+                                corridorTarget = activeGtw
                             )
                             if (nextOffer != null) {
                                 if (lastNotifiedDriverTripId != nextOffer.id) {
+                                    val gtwMatch = activeGtw?.let { target ->
+                                        DriverMapEngine.evaluateGtwMatch(
+                                            trip = nextOffer,
+                                            driverLocation = driverLoc,
+                                            corridor = target,
+                                            nowMs = nowMs
+                                        )
+                                    }
                                     val posted = RideNotificationHelper.showDriverOfferNotificationIfBackground(
                                         context = this@VhayaLiveSyncService,
                                         trip = nextOffer,
-                                        isAppInForeground = repo.isAppInForeground.value
+                                        isAppInForeground = repo.isAppInForeground.value,
+                                        corridorTarget = activeGtw,
+                                        gtwMatch = gtwMatch
                                     )
                                     if (posted) {
                                         lastNotifiedDriverTripId = nextOffer.id

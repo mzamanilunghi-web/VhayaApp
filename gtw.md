@@ -90,3 +90,26 @@ When GTW is turned on, Vhaya routes the driver toward their chosen destination w
 - Tests for `evaluateGtwMatch`, `WayfareRepository` GTW & Pocket persistence, and UI sheets (`DriverPocketSheet`, `RiderPocketSheet`).
 - Verification via unit/Robolectric test suite and applet compilation.
 
+---
+
+### Phase 6: GTW v2 Enhancements (Implemented — Accuracy, Notifications, Pocket Bridge & Reliability)
+1. **Polyline-Aware Corridor Matching (`DriverMapFeatures.kt`):**
+   - Add `pointToPolylineDistanceKm(point, polyline)` and optional `corridorRoute: RideRoute? = null` parameter on `evaluateGtwMatch`, `matchesCorridorFilter`, `rankTripsForGtw`, and `buildRequestMarkers`.
+   - Measure pickup/drop-off lateral detour against the real OSRM road polyline (`PolylineCodec.decode(corridorRoute.encodedPolyline)`) when available, falling back seamlessly to the straight-line `Driver → GTW Target` segment offline.
+2. **GTW-Aware Background Offer Notifications (`RideNotificationHelper.kt`, `VhayaLiveSyncService.kt`):**
+   - Update `pickNextEligibleOffer(...)` and `buildDriverOfferSpec(...)` to accept `corridorTarget` and `gtwMatch`, suppressing off-route background alerts when `strictFilter = true`, prioritizing GTW-matched offers, and surfacing `GTW · +X.X km detour` in lockscreen/heads-up notifications.
+3. **Auto-Arrival, Stale Expiry & "Arrive By" Time Budget (`DriverMapFeatures.kt`, `WayfareViewModel.kt`, `DriverMapFeatureSheets.kt`):**
+   - Extend `DriverCorridorTarget` with backward-compatible `arriveByEpochMs: Long? = null` and `expiresAtMs: Long? = null` plus `effectiveMaxDetourKm(nowMs)` (tightening detour allowance as the deadline approaches).
+   - Auto-expire stale GTW targets (`> 8h` or past `expiresAtMs`) and auto-clear with feedback when the driver dwells within `500 m` of the GTW destination.
+   - Add "Arrive by" chips (`Flexible`, `+45 min`, `+90 min`, `+2 hr`) in `CorridorFilterSheet`.
+4. **GTW ↔ Pocket Parcel Integration (`DriverMapFeatures.kt`, `WayfareViewModel.kt`, `DriverMapFeatureSheets.kt`, `PocketComponents.kt`):**
+   - Add `GtwPocketMatch` and `DriverMapEngine.evaluatePocketGtwMatch(...)` to match open `LISTED` Pocket items along the active GTW corridor.
+   - Surface matching Pocket parcel counts on `DriverGtwNavBanner` and `CorridorFilterSheet` with a 1-tap jump straight to the `DriverPocketSheet` Corridor Board tab.
+5. **1-Tap Presets, Offline Corridor Caching & Sync Conflict Guard (`SessionStore.kt`, `WayfareRepository.kt`, `DriverHomeScreen.kt`):**
+   - Persist recent GTW destinations in `SessionStore` and show 1-tap **Recent GTW** chips at the top of `CorridorFilterSheet`, plus a 1-tap **"Cache corridor offline"** action.
+   - Guard `WayfareRepository.refreshRoleScopedData` with `updatedAtMs` comparison so older server snapshots never overwrite newer offline GTW edits.
+   - Show an **"After drop-off → X km to GTW"** indicator during active trips while GTW is enabled.
+6. **Expanded Verification & Compose UI Tests (`DriverMapFeaturesRobolectricTest.kt`, `RideNotificationsRobolectricTest.kt`, `FrontendSimplificationTest.kt`):**
+   - Tests for curved-route polyline matching, arrive-by tightening & expiry, GTW-Pocket parcel matching, GTW notification filtering/labeling, and Compose UI tests for `CorridorFilterSheet`, `DriverPocketSheet`, and `RiderPocketSheet`.
+
+

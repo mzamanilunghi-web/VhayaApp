@@ -92,8 +92,33 @@ data class DriverCorridorTarget(
     val destination: RideCoordinates,
     val maxDetourKm: Double = 6.0,
     val strictFilter: Boolean = true,
-    val updatedAtMs: Long = 0L
-)
+    val updatedAtMs: Long = 0L,
+    val arriveByEpochMs: Long? = null,
+    val expiresAtMs: Long? = null
+) {
+    fun effectiveMaxDetourKm(nowMs: Long = System.currentTimeMillis()): Double {
+        val base = maxDetourKm.coerceIn(1.5, 25.0)
+        val deadline = arriveByEpochMs ?: return base
+        val remainingMinutes = (deadline - nowMs) / 60_000.0
+        return when {
+            remainingMinutes <= 0.0 -> min(base, 2.0)
+            remainingMinutes <= 20.0 -> min(base, 3.0)
+            remainingMinutes <= 45.0 -> min(base, 4.5)
+            else -> base
+        }
+    }
+
+    fun isExpired(nowMs: Long = System.currentTimeMillis()): Boolean {
+        val explicitExpiry = expiresAtMs
+        if (explicitExpiry != null && nowMs >= explicitExpiry) return true
+        if (updatedAtMs > 0L && nowMs - updatedAtMs >= DEFAULT_GTW_TTL_MS) return true
+        return false
+    }
+
+    companion object {
+        const val DEFAULT_GTW_TTL_MS = 8L * 60 * 60_000L
+    }
+}
 
 data class GtwTripMatch(
     val tripId: String,
@@ -102,6 +127,13 @@ data class GtwTripMatch(
     val progressTowardTargetKm: Double,
     val pickupToCorridorKm: Double,
     val endsNearTargetKm: Double,
+    val matchScore: Double
+)
+
+data class GtwPocketMatch(
+    val item: PocketItem,
+    val addedDetourKm: Double,
+    val pickupToCorridorKm: Double,
     val matchScore: Double
 )
 
@@ -194,26 +226,64 @@ object DriverMapEngine {
     fun evaluateGtwMatch(
         trip: RideTrip,
         driverLocation: RideCoordinates?,
-        corridor: DriverCorridorTarget?
+        corridor: DriverCorridorTarget?,
+        corridorRoute: RideRoute? = null,
+        nowMs: Long = System.currentTimeMillis()
     ): GtwTripMatch? {
-        if (corridor == null) return null
+        if (corridor == null || corridor.isExpired(nowMs)) return null
         val pickup = trip.pickupCoordinates ?: trip.route?.originCoordinates ?: return null
         val dest = trip.destinationCoordinates ?: trip.route?.destinationCoordinates ?: return null
+        return evaluateCoordinatesGtwMatch(
+            id = trip.id,
+            pickup = pickup,
+            dest = dest,
+            tripDistanceKmOverride = trip.route?.distanceMeters?.takeIf { it > 0 }?.div(1000.0),
+            driverLocation = driverLocation,
+            corridor = corridor,
+            corridorRoute = corridorRoute,
+            nowMs = nowMs
+        )
+    }
+
+    private fun evaluateCoordinatesGtwMatch(
+        id: String,
+        pickup: RideCoordinates,
+        dest: RideCoordinates,
+        tripDistanceKmOverride: Double?,
+        driverLocation: RideCoordinates?,
+        corridor: DriverCorridorTarget,
+        corridorRoute: RideRoute?,
+        nowMs: Long
+    ): GtwTripMatch? {
         val origin = driverLocation ?: pickup
+        val maxDetourKm = corridor.effectiveMaxDetourKm(nowMs)
+        val polyline = corridorRoute?.encodedPolyline
+            ?.takeIf { it.isNotBlank() }
+            ?.let { PolylineCodec.decode(it) }
+            .orEmpty()
 
         val originToTargetKm = LaunchPolicy.haversineKm(origin, corridor.destination) ?: 0.0
+        val baselineCorridorKm = if (driverLocation != null &&
+            corridorRoute != null &&
+            corridorRoute.distanceMeters > 0 &&
+            tripDistanceKmOverride != null
+        ) {
+            corridorRoute.distanceMeters / 1000.0
+        } else {
+            originToTargetKm
+        }
         val originToPickupKm = LaunchPolicy.haversineKm(origin, pickup) ?: 0.0
-        val pickupToDestKm = (trip.route?.distanceMeters?.takeIf { it > 0 }?.div(1000.0)
+        val pickupToDestKm = (tripDistanceKmOverride
             ?: LaunchPolicy.haversineKm(pickup, dest)
             ?: 0.0).coerceAtLeast(0.0)
         val destToHomeKm = LaunchPolicy.haversineKm(dest, corridor.destination) ?: Double.MAX_VALUE
         val pickupToHomeKm = LaunchPolicy.haversineKm(pickup, corridor.destination) ?: Double.MAX_VALUE
-        val addedDetourKm = (originToPickupKm + pickupToDestKm + destToHomeKm - originToTargetKm).coerceAtLeast(0.0)
+        val addedDetourKm = (originToPickupKm + pickupToDestKm + destToHomeKm - baselineCorridorKm).coerceAtLeast(0.0)
 
         if (originToTargetKm < 0.8) {
-            if (destToHomeKm > corridor.maxDetourKm) return null
+            if (destToHomeKm > maxDetourKm) return null
             return GtwTripMatch(
-                tripId = trip.id,
+                tripId = id,
                 addedDetourKm = addedDetourKm,
                 directionalAlignment = 1.0,
                 progressTowardTargetKm = pickupToHomeKm - destToHomeKm,
@@ -223,26 +293,34 @@ object DriverMapEngine {
             )
         }
 
-        val pickupLatDistKm = pointToSegmentDistanceKm(pickup, origin, corridor.destination)
-        if (pickupLatDistKm > corridor.maxDetourKm && originToPickupKm > corridor.maxDetourKm) {
+        val pickupLatDistKm = if (polyline.size >= 2) {
+            pointToPolylineDistanceKm(pickup, polyline)
+        } else {
+            pointToSegmentDistanceKm(pickup, origin, corridor.destination)
+        }
+        if (pickupLatDistKm > maxDetourKm && originToPickupKm > maxDetourKm) {
             return null
         }
 
-        val destLatDistKm = pointToSegmentDistanceKm(dest, origin, corridor.destination)
+        val destLatDistKm = if (polyline.size >= 2) {
+            pointToPolylineDistanceKm(dest, polyline)
+        } else {
+            pointToSegmentDistanceKm(dest, origin, corridor.destination)
+        }
         val progressKm = pickupToHomeKm - destToHomeKm
         val alignment = directionalAlignmentCosine(origin, corridor.destination, pickup, dest)
 
         val progressesTowardTarget = destToHomeKm <= pickupToHomeKm + 1.0
-        val endsAlongCorridorOrNearHome = destLatDistKm <= corridor.maxDetourKm * 1.25 ||
-            destToHomeKm <= corridor.maxDetourKm
-        val alignedForward = alignment >= 0.10 || destToHomeKm <= corridor.maxDetourKm
-        val detourReasonable = addedDetourKm <= corridor.maxDetourKm * 2.2 || destToHomeKm <= corridor.maxDetourKm
+        val endsAlongCorridorOrNearHome = destLatDistKm <= maxDetourKm * 1.25 ||
+            destToHomeKm <= maxDetourKm
+        val alignedForward = alignment >= 0.10 || destToHomeKm <= maxDetourKm
+        val detourReasonable = addedDetourKm <= maxDetourKm * 2.2 || destToHomeKm <= maxDetourKm
 
         if (!progressesTowardTarget || !endsAlongCorridorOrNearHome || !alignedForward || !detourReasonable) {
             return null
         }
 
-        val corridorFitBonus = (corridor.maxDetourKm - pickupLatDistKm).coerceAtLeast(0.0) * 3.0
+        val corridorFitBonus = (maxDetourKm - pickupLatDistKm).coerceAtLeast(0.0) * 3.0
         val matchScore = 50.0 +
             alignment * 25.0 +
             corridorFitBonus +
@@ -250,7 +328,7 @@ object DriverMapEngine {
             addedDetourKm * 2.5
 
         return GtwTripMatch(
-            tripId = trip.id,
+            tripId = id,
             addedDetourKm = addedDetourKm,
             directionalAlignment = alignment,
             progressTowardTargetKm = progressKm,
@@ -260,28 +338,78 @@ object DriverMapEngine {
         )
     }
 
+    fun evaluatePocketGtwMatch(
+        item: PocketItem,
+        driverLocation: RideCoordinates?,
+        corridor: DriverCorridorTarget?,
+        corridorRoute: RideRoute? = null,
+        nowMs: Long = System.currentTimeMillis()
+    ): GtwPocketMatch? {
+        if (corridor == null || corridor.isExpired(nowMs)) return null
+        if (item.status != PocketItemStatus.LISTED) return null
+        val match = evaluateCoordinatesGtwMatch(
+            id = item.id,
+            pickup = item.originCoordinates,
+            dest = item.destinationCoordinates,
+            tripDistanceKmOverride = null,
+            driverLocation = driverLocation,
+            corridor = corridor,
+            corridorRoute = corridorRoute,
+            nowMs = nowMs
+        ) ?: return null
+        return GtwPocketMatch(
+            item = item,
+            addedDetourKm = match.addedDetourKm,
+            pickupToCorridorKm = match.pickupToCorridorKm,
+            matchScore = match.matchScore
+        )
+    }
+
+    fun findMatchingPocketItemsForGtw(
+        items: List<PocketItem>,
+        driverLocation: RideCoordinates?,
+        corridor: DriverCorridorTarget?,
+        corridorRoute: RideRoute? = null,
+        nowMs: Long = System.currentTimeMillis()
+    ): List<GtwPocketMatch> {
+        if (corridor == null || corridor.isExpired(nowMs)) return emptyList()
+        return items.mapNotNull { item ->
+            evaluatePocketGtwMatch(
+                item = item,
+                driverLocation = driverLocation,
+                corridor = corridor,
+                corridorRoute = corridorRoute,
+                nowMs = nowMs
+            )
+        }.sortedByDescending { it.matchScore }
+    }
+
     fun matchesCorridorFilter(
         trip: RideTrip,
         driverLocation: RideCoordinates?,
-        corridor: DriverCorridorTarget?
+        corridor: DriverCorridorTarget?,
+        corridorRoute: RideRoute? = null,
+        nowMs: Long = System.currentTimeMillis()
     ): Boolean {
-        if (corridor == null) return true
+        if (corridor == null || corridor.isExpired(nowMs)) return true
         val pickup = trip.pickupCoordinates ?: trip.route?.originCoordinates ?: return true
         val dest = trip.destinationCoordinates ?: trip.route?.destinationCoordinates ?: return true
         if (pickup == dest && (LaunchPolicy.haversineKm(driverLocation ?: pickup, corridor.destination) ?: 0.0) < 0.8) {
-            return (LaunchPolicy.haversineKm(dest, corridor.destination) ?: Double.MAX_VALUE) <= corridor.maxDetourKm
+            return (LaunchPolicy.haversineKm(dest, corridor.destination) ?: Double.MAX_VALUE) <= corridor.effectiveMaxDetourKm(nowMs)
         }
-        return evaluateGtwMatch(trip, driverLocation, corridor) != null
+        return evaluateGtwMatch(trip, driverLocation, corridor, corridorRoute, nowMs) != null
     }
 
     fun rankTripsForGtw(
         trips: List<RideTrip>,
         driverLocation: RideCoordinates?,
-        corridor: DriverCorridorTarget?
+        corridor: DriverCorridorTarget?,
+        corridorRoute: RideRoute? = null,
+        nowMs: Long = System.currentTimeMillis()
     ): List<RideTrip> {
-        if (corridor == null) return trips
+        if (corridor == null || corridor.isExpired(nowMs)) return trips
         val scored = trips.map { trip ->
-            trip to evaluateGtwMatch(trip, driverLocation, corridor)
+            trip to evaluateGtwMatch(trip, driverLocation, corridor, corridorRoute, nowMs)
         }
         return if (corridor.strictFilter) {
             scored
@@ -343,19 +471,39 @@ object DriverMapEngine {
         return LaunchPolicy.haversineKm(point, proj) ?: 0.0
     }
 
+    fun pointToPolylineDistanceKm(
+        point: RideCoordinates,
+        polyline: List<RideCoordinates>
+    ): Double {
+        if (polyline.isEmpty()) return Double.MAX_VALUE
+        if (polyline.size == 1) return LaunchPolicy.haversineKm(point, polyline.first()) ?: Double.MAX_VALUE
+        var minDist = Double.MAX_VALUE
+        for (i in 0 until polyline.lastIndex) {
+            val d = pointToSegmentDistanceKm(point, polyline[i], polyline[i + 1])
+            if (d < minDist) minDist = d
+        }
+        return minDist
+    }
+
     fun buildRequestMarkers(
         trips: List<RideTrip>,
         driverLocation: RideCoordinates?,
         minRatePerKmZar: Double,
         corridorTarget: DriverCorridorTarget?,
-        returnMatchTripIds: Set<String> = emptySet()
+        returnMatchTripIds: Set<String> = emptySet(),
+        corridorRoute: RideRoute? = null,
+        nowMs: Long = System.currentTimeMillis()
     ): List<MapRequestMarker> {
         val yieldThreshold = max(18.0, minRatePerKmZar)
         return trips.mapNotNull { trip ->
             val pickup = trip.pickupCoordinates ?: trip.route?.originCoordinates ?: return@mapNotNull null
             val dest = trip.destinationCoordinates ?: trip.route?.destinationCoordinates
             val metrics = DriverDispatchMetrics.compute(trip, driverLocation, "")
-            val gtwMatch = if (corridorTarget != null) evaluateGtwMatch(trip, driverLocation, corridorTarget) else null
+            val gtwMatch = if (corridorTarget != null) {
+                evaluateGtwMatch(trip, driverLocation, corridorTarget, corridorRoute, nowMs)
+            } else {
+                null
+            }
             val isReturnMatch = trip.isReturnRequest || trip.id in returnMatchTripIds
             val prefix = when {
                 isReturnMatch -> "Return "

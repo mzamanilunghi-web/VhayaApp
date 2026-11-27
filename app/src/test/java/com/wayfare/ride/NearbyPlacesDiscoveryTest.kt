@@ -296,14 +296,14 @@ class NearbyPlacesDiscoveryTest {
                 expiresAtEpochMs = System.currentTimeMillis() + 3_600_000L
             )
         )
-        val onlineRepo = WayfareRepository(context, db, onlineStore, VhayaApiClient())
+        val onlineRepo = WayfareRepository(context, db, onlineStore, VhayaApiClient(backendBaseUrlProvider = { "http://127.0.0.1:$serverPort" }))
         val liveClinics = onlineRepo.loadNearbyPlaces(sowetoOrigin, NearbyPlaceCategory.CLINICS).getOrThrow()
         assertEquals(1, liveClinics.size)
         assertEquals("Chris Hani Baragwanath Hospital · Soweto", liveClinics.single().label)
 
         val closedPort = ServerSocket(0).use { it.localPort }
         val offlineStore = SessionStore(context, apiBaseUrlOverride = "http://127.0.0.1:$closedPort")
-        val offlineRepo = WayfareRepository(context, db, offlineStore, VhayaApiClient())
+        val offlineRepo = WayfareRepository(context, db, offlineStore, VhayaApiClient(backendBaseUrlProvider = { "http://127.0.0.1:$closedPort" }))
         val offlineClinics = offlineRepo.loadNearbyPlaces(sowetoOrigin, NearbyPlaceCategory.CLINICS).getOrThrow()
         assertEquals(1, offlineClinics.size)
         assertEquals("Chris Hani Baragwanath Hospital · Soweto", offlineClinics.single().label)

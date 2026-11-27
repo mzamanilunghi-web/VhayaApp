@@ -1741,6 +1741,9 @@ class VhayaApiClient(
                     })
                     put("maxDetourKm", target.maxDetourKm)
                     put("strictFilter", target.strictFilter)
+                    target.arriveByEpochMs?.let { put("arriveByEpochMs", it) }
+                    target.expiresAtMs?.let { put("expiresAtMs", it) }
+                    if (target.updatedAtMs > 0L) put("updatedAtMs", target.updatedAtMs)
                 }.toString()
                 executeRequest(
                     "$trimmedUrl/api/driver/gtw",

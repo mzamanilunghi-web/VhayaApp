@@ -62,6 +62,7 @@ import androidx.compose.material3.Tab
 import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -934,6 +935,7 @@ fun PocketItemCard(
                         shape = RoundedCornerShape(10.dp),
                         modifier = Modifier
                             .fillMaxWidth()
+                            .heightIn(min = 48.dp)
                             .padding(top = 4.dp)
                     ) {
                         Icon(Icons.Filled.Add, contentDescription = null, modifier = Modifier.size(16.dp))
@@ -992,19 +994,22 @@ fun DriverPocketSheet(
     onClaimItem: (itemId: String) -> Unit,
     onUpdateItemStatus: (itemId: String, PocketItemStatus) -> Unit,
     onNotifySendersAndDepart: (routeId: String) -> Unit,
+    initialTab: Int = 0,
     modifier: Modifier = Modifier
 ) {
     val colorScheme = MaterialTheme.colorScheme
     val wayfareColors = LocalWayfareColors.current
-    var selectedTab by remember { mutableIntStateOf(0) }
+    var selectedTab by remember(initialTab) { mutableIntStateOf(initialTab.coerceIn(0, 2)) }
     var isCreatingRoute by remember { mutableStateOf(false) }
 
     val myActiveRoute = pocketRoutes.firstOrNull { it.isActive }
     val myPocketItems = pocketItems.filter { it.assignedDriverRouteId == myActiveRoute?.id || it.status != PocketItemStatus.LISTED }
     val openBoardItems = pocketItems.filter { it.status == PocketItemStatus.LISTED }
 
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     ModalBottomSheet(
         onDismissRequest = onClose,
+        sheetState = sheetState,
         containerColor = colorScheme.surface,
         modifier = modifier.testTag("driver_pocket_sheet")
     ) {

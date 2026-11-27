@@ -15,12 +15,16 @@ import com.wayfare.ride.MainActivity
 import com.wayfare.ride.R
 import com.wayfare.ride.audio.NotificationSoundStyle
 import com.wayfare.ride.audio.SoundAlertPlayer
+import com.wayfare.ride.domain.DriverCorridorTarget
+import com.wayfare.ride.domain.DriverMapEngine
+import com.wayfare.ride.domain.GtwTripMatch
 import com.wayfare.ride.domain.LaunchPolicy
 import com.wayfare.ride.domain.PaymentMethod
 import com.wayfare.ride.domain.PaymentStatus
 import com.wayfare.ride.domain.ReturnRideMatch
 import com.wayfare.ride.domain.RideCoordinates
 import com.wayfare.ride.domain.RideRole
+import com.wayfare.ride.domain.RideRoute
 import com.wayfare.ride.domain.RideStatus
 import com.wayfare.ride.domain.RideTrip
 import java.util.Locale
@@ -209,21 +213,42 @@ object RideNotificationHelper {
         trips: List<RideTrip>,
         declinedIds: Set<String>,
         driverCoords: RideCoordinates? = null,
-        nowMs: Long = System.currentTimeMillis()
+        nowMs: Long = System.currentTimeMillis(),
+        corridorTarget: DriverCorridorTarget? = null,
+        corridorRoute: RideRoute? = null
     ): RideTrip? {
-        return trips
-            .filter { trip ->
-                trip.status.isOpenForDrivers &&
-                    trip.driverId == null &&
-                    trip.id !in declinedIds &&
-                    !LaunchPolicy.isTripExpired(trip, nowMs)
+        val eligible = trips.filter { trip ->
+            trip.status.isOpenForDrivers &&
+                trip.driverId == null &&
+                trip.id !in declinedIds &&
+                !LaunchPolicy.isTripExpired(trip, nowMs)
+        }
+        val activeGtw = corridorTarget?.takeUnless { it.isExpired(nowMs) }
+        if (activeGtw != null) {
+            val ranked = DriverMapEngine.rankTripsForGtw(
+                trips = eligible,
+                driverLocation = driverCoords,
+                corridor = activeGtw,
+                corridorRoute = corridorRoute,
+                nowMs = nowMs
+            )
+            return if (activeGtw.strictFilter) {
+                ranked.firstOrNull()
+            } else {
+                val topGtw = ranked.firstOrNull {
+                    DriverMapEngine.evaluateGtwMatch(it, driverCoords, activeGtw, corridorRoute, nowMs) != null
+                }
+                topGtw ?: eligible.maxByOrNull { LaunchPolicy.matchScoreForDriver(it, driverCoords) }
             }
-            .maxByOrNull { LaunchPolicy.matchScoreForDriver(it, driverCoords) }
+        }
+        return eligible.maxByOrNull { LaunchPolicy.matchScoreForDriver(it, driverCoords) }
     }
 
     fun buildDriverOfferSpec(
         trip: RideTrip,
-        nowMs: Long = System.currentTimeMillis()
+        nowMs: Long = System.currentTimeMillis(),
+        corridorTarget: DriverCorridorTarget? = null,
+        gtwMatch: GtwTripMatch? = null
     ): DriverOfferSpec {
         val pickupShort = trip.pickup.substringBefore(" ·").trim().ifBlank { "Pickup" }
         val destShort = trip.destination.substringBefore(" ·").trim().ifBlank { "Destination" }
@@ -236,17 +261,30 @@ object RideNotificationHelper {
         }
         val distanceSuffix = if (distanceMeters > 0) " · $distanceLabel" else ""
         val remaining = LaunchPolicy.formatCountdownMs(LaunchPolicy.remainingOpenMs(trip, nowMs))
-        val metaLabel = if (trip.isReturnRequest) {
-            "Return Request · ${trip.category.label} · ${trip.paymentMethod.label}"
+        val gtwDetourPrefix = if (gtwMatch != null && corridorTarget != null) {
+            "GTW +${"%.1f".format(Locale.US, gtwMatch.addedDetourKm)} km · "
         } else {
-            "${trip.category.label} · ${trip.paymentMethod.label}"
+            ""
         }
-        val titlePrefix = if (trip.isReturnRequest) "Return Ride" else "New Ride"
+        val metaLabel = if (trip.isReturnRequest) {
+            "${gtwDetourPrefix}Return Request · ${trip.category.label} · ${trip.paymentMethod.label}"
+        } else {
+            "$gtwDetourPrefix${trip.category.label} · ${trip.paymentMethod.label}"
+        }
+        val titlePrefix = when {
+            gtwMatch != null && corridorTarget != null -> "GTW"
+            trip.isReturnRequest -> "Return Ride"
+            else -> "New Ride"
+        }
         val title = "$titlePrefix · $fareLabel$distanceSuffix"
         val shortText = "$pickupShort → $destShort"
         val bigText = buildString {
             appendLine("Pickup: $pickupShort")
             appendLine("Drop-off: $destShort")
+            if (gtwMatch != null && corridorTarget != null) {
+                val targetName = corridorTarget.label.substringBefore(" ·")
+                appendLine("GTW: On way to $targetName (+${"%.1f".format(Locale.US, gtwMatch.addedDetourKm)} km detour)")
+            }
             if (trip.isReturnRequest) appendLine("Rural Return Request (backhaul)")
             append("Pay: ${trip.paymentMethod.label} · ${trip.category.label} · Expires in $remaining")
         }
@@ -452,9 +490,18 @@ object RideNotificationHelper {
         return builder.build()
     }
 
-    fun buildDriverOfferNotification(context: Context, trip: RideTrip): Notification {
+    fun buildDriverOfferNotification(
+        context: Context,
+        trip: RideTrip,
+        corridorTarget: DriverCorridorTarget? = null,
+        gtwMatch: GtwTripMatch? = null
+    ): Notification {
         ensureChannels(context)
-        val spec = buildDriverOfferSpec(trip)
+        val spec = buildDriverOfferSpec(
+            trip = trip,
+            corridorTarget = corridorTarget,
+            gtwMatch = gtwMatch
+        )
 
         // Android 12+ requires Activity PendingIntent directly to avoid notification trampoline bans
         val acceptActivityIntent = Intent(
@@ -574,10 +621,15 @@ object RideNotificationHelper {
         return builder.build()
     }
 
-    fun showDriverOfferNotification(context: Context, trip: RideTrip) {
+    fun showDriverOfferNotification(
+        context: Context,
+        trip: RideTrip,
+        corridorTarget: DriverCorridorTarget? = null,
+        gtwMatch: GtwTripMatch? = null
+    ) {
         if (!SupportNotificationHelper.hasNotificationPermission(context)) return
         val manager = notificationManager(context) ?: return
-        val notification = buildDriverOfferNotification(context, trip)
+        val notification = buildDriverOfferNotification(context, trip, corridorTarget, gtwMatch)
         runCatching {
             manager.notify(DRIVER_OFFER_NOTIF_ID, notification)
         }
@@ -586,13 +638,15 @@ object RideNotificationHelper {
     fun showDriverOfferNotificationIfBackground(
         context: Context,
         trip: RideTrip,
-        isAppInForeground: Boolean
+        isAppInForeground: Boolean,
+        corridorTarget: DriverCorridorTarget? = null,
+        gtwMatch: GtwTripMatch? = null
     ): Boolean {
         if (isAppInForeground || !SupportNotificationHelper.hasNotificationPermission(context)) {
             return false
         }
         val manager = notificationManager(context) ?: return false
-        val notification = buildDriverOfferNotification(context, trip)
+        val notification = buildDriverOfferNotification(context, trip, corridorTarget, gtwMatch)
         return runCatching {
             manager.notify(DRIVER_OFFER_NOTIF_ID, notification)
             true

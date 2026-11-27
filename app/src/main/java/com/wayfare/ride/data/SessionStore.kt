@@ -189,6 +189,28 @@ class SessionStore(
         }
     }
 
+    fun loadRecentGtwTargets(): List<DriverCorridorTarget> {
+        val raw = prefs.getString(KEY_RECENT_GTW_TARGETS, null) ?: return emptyList()
+        return runCatching { json.decodeFromString<List<DriverCorridorTarget>>(raw) }.getOrDefault(emptyList())
+    }
+
+    fun saveRecentGtwTarget(target: DriverCorridorTarget): List<DriverCorridorTarget> {
+        val cleanLabel = target.label.trim().ifBlank { "GTW Destination" }
+        val normalized = target.copy(
+            label = cleanLabel,
+            arriveByEpochMs = null,
+            expiresAtMs = null
+        )
+        val existing = loadRecentGtwTargets().filterNot {
+            it.label.equals(cleanLabel, ignoreCase = true) ||
+                (kotlin.math.abs(it.destination.latitude - normalized.destination.latitude) < 0.002 &&
+                    kotlin.math.abs(it.destination.longitude - normalized.destination.longitude) < 0.002)
+        }
+        val updated = (listOf(normalized) + existing).take(5)
+        prefs.edit().putString(KEY_RECENT_GTW_TARGETS, json.encodeToString(updated)).apply()
+        return updated
+    }
+
     fun loadOfflineTilePacks(): List<OfflineCorridorPackStatus> {
         val raw = prefs.getString(KEY_OFFLINE_TILE_PACKS, null) ?: return emptyList()
         return runCatching { json.decodeFromString<List<OfflineCorridorPackStatus>>(raw) }.getOrDefault(emptyList())
@@ -262,6 +284,7 @@ class SessionStore(
             .remove(KEY_DRIVER_MIN_RATE_PER_KM)
             .remove(KEY_TRUSTED_DRIVERS)
             .remove(KEY_DRIVER_CORRIDOR_TARGET)
+            .remove(KEY_RECENT_GTW_TARGETS)
             .remove(KEY_DRIVER_QUEUED_RETURN_TRIP_ID)
             .remove(KEY_POCKET_ROUTES)
             .remove(KEY_POCKET_ITEMS)
@@ -283,6 +306,7 @@ class SessionStore(
         private const val KEY_APP_LANGUAGE = "app_language_code"
         private const val KEY_TRUSTED_DRIVERS = "trusted_community_drivers_json"
         private const val KEY_DRIVER_CORRIDOR_TARGET = "driver_corridor_target_json"
+        private const val KEY_RECENT_GTW_TARGETS = "driver_recent_gtw_targets_json"
         private const val KEY_OFFLINE_TILE_PACKS = "offline_tile_packs_json"
         private const val KEY_DRIVER_VOICE_NAV = "driver_voice_nav_enabled"
         private const val KEY_DRIVER_HEADING_UP = "driver_heading_up_enabled"

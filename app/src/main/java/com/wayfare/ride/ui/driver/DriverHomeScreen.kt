@@ -454,7 +454,9 @@ fun DriverHomeScreen(
         uiState.driverReturnRideMatches,
         driverLiveCoords,
         uiState.driverMinRatePerKmZar,
-        uiState.driverCorridorTarget
+        uiState.driverCorridorTarget,
+        uiState.driverGtwRoute,
+        uiState.nowEpochMs
     ) {
         when {
             isApproved && isOnline && activeTrip == null && openRequests.isNotEmpty() -> {
@@ -462,7 +464,9 @@ fun DriverHomeScreen(
                     trips = openRequests,
                     driverLocation = driverLiveCoords,
                     minRatePerKmZar = uiState.driverMinRatePerKmZar,
-                    corridorTarget = uiState.driverCorridorTarget
+                    corridorTarget = uiState.driverCorridorTarget,
+                    corridorRoute = uiState.driverGtwRoute,
+                    nowMs = uiState.nowEpochMs
                 )
             }
             isApproved && isOnline && activeTrip?.status == RideStatus.IN_PROGRESS && uiState.driverReturnRideMatches.isNotEmpty() -> {
@@ -483,12 +487,20 @@ fun DriverHomeScreen(
         uiState.driverAllOpenRequests,
         uiState.driverMinRatePerKmZar,
         uiState.driverCurrentCoords,
-        uiState.driverCorridorTarget
+        uiState.driverCorridorTarget,
+        uiState.driverGtwRoute,
+        uiState.nowEpochMs
     ) {
         val target = uiState.driverCorridorTarget ?: return@remember 0
         uiState.driverAllOpenRequests.count { trip ->
             SmartRideGuards.matchesDriverMinRateFilter(trip, uiState.driverMinRatePerKmZar) &&
-                !DriverMapEngine.matchesCorridorFilter(trip, uiState.driverCurrentCoords, target)
+                !DriverMapEngine.matchesCorridorFilter(
+                    trip = trip,
+                    driverLocation = uiState.driverCurrentCoords,
+                    corridor = target,
+                    corridorRoute = uiState.driverGtwRoute,
+                    nowMs = uiState.nowEpochMs
+                )
         }
     }
 
@@ -791,7 +803,10 @@ fun DriverHomeScreen(
                                 onOpenExternal = {
                                     openExternalNavigation(context, activeGtwTarget.destination, activeGtwTarget.label)
                                 },
-                                onClear = { viewModel.setDriverCorridorTarget(null) }
+                                onClear = { viewModel.setDriverCorridorTarget(null) },
+                                matchingPocketCount = uiState.driverGtwPocketMatches.size,
+                                onOpenPocketBoard = { viewModel.openDriverPocketSheet(initialTab = 1) },
+                                nowEpochMs = uiState.nowEpochMs
                             )
                         }
                         isApproved && uiState.driverHeatmapEnabled -> {
@@ -959,7 +974,8 @@ fun DriverHomeScreen(
                         onQueueReturnRide = viewModel::driverQueueReturnRide,
                         onCounterReturnRide = viewModel::driverCounterReturnRide,
                         onDismissReturnRide = viewModel::driverDismissReturnRide,
-                        onCancelQueuedReturn = viewModel::driverCancelQueuedReturnRide
+                        onCancelQueuedReturn = viewModel::driverCancelQueuedReturnRide,
+                        corridorTarget = uiState.driverCorridorTarget
                     )
                 }
             }
@@ -1049,6 +1065,7 @@ fun DriverHomeScreen(
                             driverCoords = uiState.driverCurrentCoords,
                             busyAccepting = uiState.isBusy("driver_offer"),
                             corridorTarget = uiState.driverCorridorTarget,
+                            corridorRoute = uiState.driverGtwRoute,
                             onAccept = {
                                 haptics.performHapticFeedback(HapticFeedbackType.LongPress)
                                 viewModel.driverSubmitOffer(currentRequest, currentRequest.fare)
@@ -1168,7 +1185,12 @@ fun DriverHomeScreen(
                 searchingPlaces = uiState.searchingPlaces,
                 onSearchPlaces = { query -> viewModel.searchPlaces(query) },
                 savedDestinations = uiState.savedDestinations,
-                gtwMatchedCount = uiState.driverGtwMatchedCount
+                gtwMatchedCount = uiState.driverGtwMatchedCount,
+                recentTargets = uiState.recentGtwTargets,
+                matchingPocketCount = uiState.driverGtwPocketMatches.size,
+                onOpenPocketBoard = { viewModel.openDriverPocketSheet(initialTab = 1) },
+                onCacheCorridorTiles = { viewModel.cacheActiveGtwCorridorTiles() },
+                offlinePackDownloading = uiState.offlinePackDownloadingId != null
             )
         }
 
@@ -1215,7 +1237,8 @@ fun DriverHomeScreen(
                 },
                 onClaimItem = { itemId -> viewModel.claimPocketItem(itemId) },
                 onUpdateItemStatus = { itemId, status -> viewModel.updatePocketItemStatus(itemId, status) },
-                onNotifySendersAndDepart = { routeId -> viewModel.notifySendersAndDepart(routeId) }
+                onNotifySendersAndDepart = { routeId -> viewModel.notifySendersAndDepart(routeId) },
+                initialTab = uiState.driverPocketInitialTab
             )
         }
 

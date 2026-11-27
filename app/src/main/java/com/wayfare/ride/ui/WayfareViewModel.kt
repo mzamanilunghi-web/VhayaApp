@@ -20,6 +20,7 @@ import com.wayfare.ride.domain.DriverCorridorTarget
 import com.wayfare.ride.domain.DriverDocumentType
 import com.wayfare.ride.domain.DriverEarningsSummary
 import com.wayfare.ride.domain.DriverMapEngine
+import com.wayfare.ride.domain.GtwPocketMatch
 import com.wayfare.ride.domain.DriverPayoutRecord
 import com.wayfare.ride.domain.DriverPocketRoute
 import com.wayfare.ride.domain.DriverProfileSnapshot
@@ -130,6 +131,7 @@ data class BookingDraft(
     val customOfferText: String = "",
     val isOfferExpanded: Boolean = false,
     val scheduledOffsetMinutes: Int? = null,
+    val scheduledPickupEpochMs: Long? = null,
     val gpsUsingDeviceLocation: Boolean = false,
     val paymentMethod: PaymentMethod = PaymentMethod.CASH,
     val pickupNote: String = "",
@@ -275,9 +277,11 @@ data class WayfareUiState(
     val driverNavRoute: RideRoute? = null,
     val driverNavLoading: Boolean = false,
     val driverNavFollowCamera: Boolean = true,
+    val driverArrivalPinError: String? = null,
     val isNetworkConnected: Boolean = true,
     val roadHazards: List<RoadHazardPin> = emptyList(),
     val driverCorridorTarget: DriverCorridorTarget? = null,
+    val recentGtwTargets: List<DriverCorridorTarget> = emptyList(),
     val driverGtwRoute: RideRoute? = null,
     val driverGtwRouteLoading: Boolean = false,
     val driverQueuedReturnTripId: String? = null,
@@ -316,6 +320,7 @@ data class WayfareUiState(
     val pocketItems: List<PocketItem> = emptyList(),
     val isRiderPocketSheetVisible: Boolean = false,
     val isDriverPocketSheetVisible: Boolean = false,
+    val driverPocketInitialTab: Int = 0,
     val selectedPocketRoute: DriverPocketRoute? = null
 ) {
     fun isBusy(key: String): Boolean = key in busyActions
@@ -422,7 +427,9 @@ data class WayfareUiState(
             return DriverMapEngine.rankTripsForGtw(
                 trips = rateEligible,
                 driverLocation = driverCurrentCoords,
-                corridor = driverCorridorTarget
+                corridor = driverCorridorTarget,
+                corridorRoute = driverGtwRoute,
+                nowMs = nowEpochMs
             )
         }
 
@@ -430,24 +437,45 @@ data class WayfareUiState(
         get() = (driverAllOpenRequests.size - driverOpenRequests.size).coerceAtLeast(0)
 
     val driverCorridorFilteredOutCount: Int
-        get() = if (driverCorridorTarget == null) {
+        get() = if (driverCorridorTarget == null || driverCorridorTarget.isExpired(nowEpochMs)) {
             0
         } else {
             driverAllOpenRequests.count { trip ->
                 SmartRideGuards.matchesDriverMinRateFilter(trip, driverMinRatePerKmZar) &&
-                    !DriverMapEngine.matchesCorridorFilter(trip, driverCurrentCoords, driverCorridorTarget)
+                    !DriverMapEngine.matchesCorridorFilter(
+                        trip = trip,
+                        driverLocation = driverCurrentCoords,
+                        corridor = driverCorridorTarget,
+                        corridorRoute = driverGtwRoute,
+                        nowMs = nowEpochMs
+                    )
             }
         }
 
     val driverGtwMatchedCount: Int
-        get() = if (driverCorridorTarget == null) {
+        get() = if (driverCorridorTarget == null || driverCorridorTarget.isExpired(nowEpochMs)) {
             0
         } else {
             driverAllOpenRequests.count { trip ->
                 SmartRideGuards.matchesDriverMinRateFilter(trip, driverMinRatePerKmZar) &&
-                    DriverMapEngine.matchesCorridorFilter(trip, driverCurrentCoords, driverCorridorTarget)
+                    DriverMapEngine.matchesCorridorFilter(
+                        trip = trip,
+                        driverLocation = driverCurrentCoords,
+                        corridor = driverCorridorTarget,
+                        corridorRoute = driverGtwRoute,
+                        nowMs = nowEpochMs
+                    )
             }
         }
+
+    val driverGtwPocketMatches: List<GtwPocketMatch>
+        get() = DriverMapEngine.findMatchingPocketItemsForGtw(
+            items = pocketItems,
+            driverLocation = driverCurrentCoords,
+            corridor = driverCorridorTarget,
+            corridorRoute = driverGtwRoute,
+            nowMs = nowEpochMs
+        )
 
     val driverCompletedTrips: List<RideTrip>
         get() = trips.filter { it.driverId == activeUserId && it.status == RideStatus.COMPLETED }
@@ -476,6 +504,7 @@ private data class LocalNavState(
     val driverNavRouteTripKey: String? = null,
     val driverNavLoading: Boolean = false,
     val driverNavFollowCamera: Boolean = true,
+    val driverArrivalPinError: String? = null,
     val driverRepositionZone: LaunchPolicy.DemandHeatZone? = null,
     val driverRepositionRoute: RideRoute? = null,
     val driverRepositionLoading: Boolean = false,
@@ -517,6 +546,7 @@ private data class LocalNavState(
     val pendingOpenChatTripId: String? = null,
     val isRiderPocketSheetVisible: Boolean = false,
     val isDriverPocketSheetVisible: Boolean = false,
+    val driverPocketInitialTab: Int = 0,
     val selectedPocketRoute: DriverPocketRoute? = null
 )
 
@@ -556,6 +586,7 @@ class WayfareViewModel(
     private var driverGtwFetchJob: Job? = null
     private var lastDriverGtwOrigin: RideCoordinates? = null
     private var lastDriverGtwTargetKey: String? = null
+    private var gtwArrivalCandidateSinceMs: Long? = null
     private var driverAddressJob: Job? = null
     private var lastDriverNavOrigin: RideCoordinates? = null
     private var lastDriverAddressCoords: RideCoordinates? = null
@@ -658,7 +689,8 @@ class WayfareViewModel(
         repository.driverVoiceNavEnabled,
         repository.driverHeadingUpEnabled,
         repository.isNetworkConnected,
-        repository.driverQueuedReturnTripId
+        repository.driverQueuedReturnTripId,
+        repository.recentGtwTargets
     ) { arr ->
         @Suppress("UNCHECKED_CAST")
         SessionSlice(
@@ -676,7 +708,8 @@ class WayfareViewModel(
             driverVoiceNavEnabled = arr[11] as Boolean,
             driverHeadingUpEnabled = arr[12] as Boolean,
             isNetworkConnected = arr[13] as Boolean,
-            driverQueuedReturnTripId = arr[14] as String?
+            driverQueuedReturnTripId = arr[14] as String?,
+            recentGtwTargets = arr[15] as List<DriverCorridorTarget>
         )
     }
 
@@ -746,9 +779,11 @@ class WayfareViewModel(
             driverNavRoute = nav.driverNavRoute,
             driverNavLoading = nav.driverNavLoading,
             driverNavFollowCamera = nav.driverNavFollowCamera,
+            driverArrivalPinError = nav.driverArrivalPinError,
             isNetworkConnected = session.isNetworkConnected,
             roadHazards = summary.roadHazards,
             driverCorridorTarget = session.driverCorridorTarget,
+            recentGtwTargets = session.recentGtwTargets,
             driverGtwRoute = nav.driverGtwRoute,
             driverGtwRouteLoading = nav.driverGtwRouteLoading,
             driverQueuedReturnTripId = session.driverQueuedReturnTripId,
@@ -787,6 +822,7 @@ class WayfareViewModel(
             pocketItems = core.pocketItems,
             isRiderPocketSheetVisible = nav.isRiderPocketSheetVisible,
             isDriverPocketSheetVisible = nav.isDriverPocketSheetVisible,
+            driverPocketInitialTab = nav.driverPocketInitialTab,
             selectedPocketRoute = nav.selectedPocketRoute
         )
     }.stateIn(
@@ -805,6 +841,7 @@ class WayfareViewModel(
             driverMinRatePerKmZar = repository.driverMinRatePerKmZar.value,
             isNetworkConnected = repository.isNetworkConnected.value,
             driverCorridorTarget = repository.driverCorridorTarget.value,
+            recentGtwTargets = repository.recentGtwTargets.value,
             driverQueuedReturnTripId = repository.driverQueuedReturnTripId.value,
             driverVoiceNavEnabled = repository.driverVoiceNavEnabled.value,
             driverHeadingUpEnabled = repository.driverHeadingUpEnabled.value,
@@ -849,6 +886,7 @@ class WayfareViewModel(
                     expiringTripIds.clear()
                     autoPaymentTriggeredTripIds.clear()
                     stallTrackers.clear()
+                    gtwArrivalCandidateSinceMs = null
                     driverAddressJob?.cancel()
                     lastDriverAddressCoords = null
                     nearbyPlacesJob?.cancel()
@@ -1187,9 +1225,54 @@ class WayfareViewModel(
                     val stateSnapshot = uiState.value
                     updateSmartTripGuards(stateSnapshot.trips, stateSnapshot.activeUserId, now)
                     checkAndExpireStaleTrips(now)
+                    evaluateGtwLifecycle(stateSnapshot, now)
                 }
                 delay(1_000L)
             }
+        }
+    }
+
+    private fun evaluateGtwLifecycle(state: WayfareUiState, nowMs: Long) {
+        val expired = repository.clearExpiredGtwTargetIfNeeded(nowMs)
+        if (expired != null) {
+            gtwArrivalCandidateSinceMs = null
+            refreshDriverGtwRoute(null, force = true)
+            toast(
+                message = "GTW to ${expired.label.substringBefore(" ·")} expired after 8 hours",
+                tone = VhayaFeedbackTone.INFO
+            )
+            return
+        }
+        val activeTarget = repository.driverCorridorTarget.value
+        if (activeTarget == null ||
+            state.activeRole != RideRole.DRIVER ||
+            state.driverActiveTrip != null ||
+            !state.driverHasGpsFix
+        ) {
+            gtwArrivalCandidateSinceMs = null
+            return
+        }
+        val distToDestKm = LaunchPolicy.haversineKm(state.driverCurrentCoords, activeTarget.destination)
+        if (distToDestKm != null && distToDestKm <= 0.5) {
+            val candidateSince = gtwArrivalCandidateSinceMs
+            if (candidateSince == null) {
+                gtwArrivalCandidateSinceMs = nowMs
+            } else if (nowMs - candidateSince >= 45_000L) {
+                gtwArrivalCandidateSinceMs = null
+                repository.setDriverCorridorTarget(null)
+                localNav.update { it.copy(driverRequestIndex = 0) }
+                viewModelScope.launch {
+                    repository.syncDriverCorridorTarget(null)
+                }
+                refreshDriverGtwRoute(null, force = true)
+                toast(
+                    message = "Arrived near ${activeTarget.label.substringBefore(" ·")} — GTW cleared",
+                    tone = VhayaFeedbackTone.SUCCESS,
+                    title = "GTW destination reached"
+                )
+            }
+        } else {
+            gtwArrivalCandidateSinceMs = null
         }
     }
 
@@ -2435,7 +2518,25 @@ class WayfareViewModel(
     }
 
     fun setScheduledOffset(minutesFromNow: Int?) {
-        localNav.update { it.copy(booking = it.booking.copy(scheduledOffsetMinutes = minutesFromNow)) }
+        localNav.update {
+            it.copy(
+                booking = it.booking.copy(
+                    scheduledOffsetMinutes = minutesFromNow,
+                    scheduledPickupEpochMs = null
+                )
+            )
+        }
+    }
+
+    fun setScheduledPickupEpochMs(epochMs: Long?) {
+        localNav.update {
+            it.copy(
+                booking = it.booking.copy(
+                    scheduledPickupEpochMs = epochMs,
+                    scheduledOffsetMinutes = null
+                )
+            )
+        }
     }
 
     fun selectPaymentMethod(method: PaymentMethod) {
@@ -2569,7 +2670,8 @@ class WayfareViewModel(
         }
         if (!beginBusy("request_ride")) return
         val customFare = draft.customOfferText.toDoubleOrNull()?.takeIf { it >= 20.0 }
-        val pickupAt = draft.scheduledOffsetMinutes?.let { System.currentTimeMillis() + it * 60_000L }
+        val pickupAt = draft.scheduledPickupEpochMs
+            ?: draft.scheduledOffsetMinutes?.let { System.currentTimeMillis() + it * 60_000L }
 
         localNav.update { it.copy(booking = it.booking.copy(routeLoading = true, routeError = null)) }
         viewModelScope.launch {
@@ -2810,12 +2912,47 @@ class WayfareViewModel(
         }
     }
 
-    fun rateTrip(tripId: String, stars: Int) {
+    fun boostSearchingTripFare(trip: RideTrip, deltaZar: Int) {
+        if (!beginBusy("boost_fare")) return
+        val updatedFare = (trip.fare + deltaZar).coerceAtLeast(20.0)
+        viewModelScope.launch {
+            try {
+                repository.boostTripFare(trip.id, updatedFare)
+                    .onSuccess {
+                        toast(
+                            message = "Offer raised to ${LaunchPolicy.formatZar(updatedFare)} — notifying nearby drivers",
+                            tone = VhayaFeedbackTone.SUCCESS,
+                            title = "Fare boosted"
+                        )
+                    }
+                    .onFailure { reportActionFailure(it, "Could not boost fare") }
+            } finally {
+                endBusy("boost_fare")
+            }
+        }
+    }
+
+    fun updateActiveTripPickupNote(tripId: String, note: String) {
+        if (!beginBusy("pickup_note")) return
+        viewModelScope.launch {
+            try {
+                repository.updateTripPickupNote(tripId, note)
+                    .onSuccess {
+                        toast("Pickup note updated", tone = VhayaFeedbackTone.SUCCESS)
+                    }
+                    .onFailure { reportActionFailure(it, "Could not update pickup note") }
+            } finally {
+                endBusy("pickup_note")
+            }
+        }
+    }
+
+    fun rateTrip(tripId: String, stars: Int, feedbackTags: List<String> = emptyList()) {
         if (!beginBusy("rate_trip")) return
         viewModelScope.launch {
             try {
                 val beforeQueue = repository.pendingOfflineCount.value
-                repository.rateTrip(tripId, stars)
+                repository.rateTrip(tripId, stars, feedbackTags)
                     .onSuccess {
                         localNav.update {
                             if (it.pendingRatingTripId == tripId) it.copy(pendingRatingTripId = null) else it
@@ -2906,6 +3043,21 @@ class WayfareViewModel(
         viewModelScope.launch {
             repository.toggleSavedDestination(label, coords)
             toast("Saved place added")
+        }
+    }
+
+    fun toggleSavePlace(label: String, coords: RideCoordinates) {
+        viewModelScope.launch {
+            val existing = uiState.value.savedDestinations.firstOrNull {
+                it.label.equals(label, ignoreCase = true)
+            }
+            if (existing != null) {
+                repository.deleteSavedDestination(existing.id)
+                toast("Removed from saved places")
+            } else {
+                repository.toggleSavedDestination(label, coords)
+                toast("Saved place added")
+            }
         }
     }
 
@@ -3034,8 +3186,13 @@ class WayfareViewModel(
     }
 
     fun setDriverCorridorTarget(target: DriverCorridorTarget?) {
+        gtwArrivalCandidateSinceMs = null
+        val now = System.currentTimeMillis()
         val stamped = target?.let {
-            it.copy(updatedAtMs = System.currentTimeMillis())
+            it.copy(
+                updatedAtMs = now,
+                expiresAtMs = it.expiresAtMs ?: (now + DriverCorridorTarget.DEFAULT_GTW_TTL_MS)
+            )
         }
         repository.setDriverCorridorTarget(stamped)
         localNav.update { it.copy(driverRequestIndex = 0) }
@@ -3047,8 +3204,9 @@ class WayfareViewModel(
             toast("GTW (Going That Way) turned off — showing all rides", tone = VhayaFeedbackTone.INFO)
         } else {
             val modeLabel = if (stamped.strictFilter) "GTW Only" else "Boost GTW"
+            val effectiveKm = stamped.effectiveMaxDetourKm(now).toInt()
             toast(
-                message = "$modeLabel active toward ${stamped.label.substringBefore(" ·")} (max ${stamped.maxDetourKm.toInt()} km detour)",
+                message = "$modeLabel active toward ${stamped.label.substringBefore(" ·")} (max $effectiveKm km detour)",
                 tone = VhayaFeedbackTone.SUCCESS,
                 title = "GTW Going That Way ON"
             )
@@ -3154,12 +3312,39 @@ class WayfareViewModel(
         localNav.update { it.copy(isRiderPocketSheetVisible = false, selectedPocketRoute = null) }
     }
 
-    fun openDriverPocketSheet() {
-        localNav.update { it.copy(isDriverPocketSheetVisible = true) }
+    fun openDriverPocketSheet(initialTab: Int = 0) {
+        localNav.update {
+            it.copy(
+                isDriverPocketSheetVisible = true,
+                driverPocketInitialTab = initialTab.coerceIn(0, 2)
+            )
+        }
     }
 
     fun closeDriverPocketSheet() {
-        localNav.update { it.copy(isDriverPocketSheetVisible = false, selectedPocketRoute = null) }
+        localNav.update {
+            it.copy(
+                isDriverPocketSheetVisible = false,
+                driverPocketInitialTab = 0,
+                selectedPocketRoute = null
+            )
+        }
+    }
+
+    fun cacheActiveGtwCorridorTiles() {
+        val target = repository.driverCorridorTarget.value ?: return
+        val origin = localNav.value.driverCurrentCoords
+        val shortLabel = target.label.substringBefore(" ·")
+        val latKey = String.format(java.util.Locale.US, "%.3f", target.destination.latitude)
+        val lonKey = String.format(java.util.Locale.US, "%.3f", target.destination.longitude)
+        val pack = OfflineCorridorPack(
+            id = "gtw_${latKey}_${lonKey}",
+            title = "GTW → $shortLabel",
+            subtitle = "Live GTW route corridor",
+            origin = origin,
+            destination = target.destination
+        )
+        downloadOfflineCorridorPack(pack)
     }
 
     fun setSelectedPocketRoute(route: DriverPocketRoute?) {
@@ -3281,6 +3466,48 @@ class WayfareViewModel(
                 title = "Pocket Cargo Updated"
             )
         }
+    }
+
+    fun reserveSeatInDriverPocket(
+        routeId: String,
+        seatCount: Int,
+        passengerName: String,
+        passengerPhone: String,
+        pickupNote: String
+    ) {
+        val item = repository.reserveSeatInDriverPocket(
+            routeId = routeId,
+            seatCount = seatCount,
+            passengerName = passengerName,
+            passengerPhone = passengerPhone,
+            pickupNote = pickupNote
+        )
+        if (item != null) {
+            toast(
+                message = "Seat reserved! Boarding PIN: ${item.recipientPin}. View details in My Parcels.",
+                tone = VhayaFeedbackTone.SUCCESS,
+                title = "Seat Reserved"
+            )
+        } else {
+            toast("Not enough seats left on this Pocket route.", tone = VhayaFeedbackTone.WARNING)
+        }
+    }
+
+    fun verifyAndDeliverPocketItem(itemId: String, enteredPin: String): Result<Unit> {
+        val result = repository.verifyPocketItemPinAndDeliver(itemId, enteredPin)
+        return result.fold(
+            onSuccess = { delivered ->
+                toast(
+                    message = "${delivered.itemDescription} verified & marked Delivered!",
+                    tone = VhayaFeedbackTone.SUCCESS,
+                    title = "PIN Verified"
+                )
+                Result.success(Unit)
+            },
+            onFailure = { err ->
+                Result.failure(err)
+            }
+        )
     }
 
     fun notifySendersAndDepart(routeId: String) {
@@ -3542,12 +3769,41 @@ class WayfareViewModel(
         }
     }
 
-    fun driverMarkArrived(tripId: String) {
-        if (!beginBusy("driver_arrived")) return
+    fun driverWithdrawCounterOffer(tripId: String, offerId: String) {
+        if (!beginBusy("driver_offer")) return
         viewModelScope.launch {
             try {
-                repository.driverMarkArrived(tripId, localNav.value.driverCurrentCoords)
-                    .onSuccess { toast("Arrived · ask rider for 6-digit PIN", tone = VhayaFeedbackTone.SUCCESS) }
+                repository.withdrawDriverOffer(tripId, offerId)
+                    .onSuccess { toast("Counter-offer withdrawn", tone = VhayaFeedbackTone.INFO) }
+                    .onFailure { reportActionFailure(it, "Could not withdraw counter-offer") }
+            } finally {
+                endBusy("driver_offer")
+            }
+        }
+    }
+
+    fun clearDriverArrivalPinError() {
+        localNav.update { it.copy(driverArrivalPinError = null) }
+    }
+
+    fun driverMarkArrived(
+        tripId: String,
+        freshCoords: RideCoordinates? = null,
+        onSuccess: () -> Unit = {}
+    ) {
+        if (!beginBusy("driver_arrived")) return
+        val coordsToUse = freshCoords ?: localNav.value.driverCurrentCoords
+        if (freshCoords != null) {
+            localNav.update { it.copy(driverCurrentCoords = freshCoords, driverHasGpsFix = true) }
+        }
+        viewModelScope.launch {
+            try {
+                repository.driverMarkArrived(tripId, coordsToUse)
+                    .onSuccess {
+                        localNav.update { it.copy(driverArrivalPinError = null) }
+                        toast("Arrived · ask rider for 6-digit PIN", tone = VhayaFeedbackTone.SUCCESS)
+                        onSuccess()
+                    }
                     .onFailure { reportActionFailure(it, "Arrival check failed") }
             } finally {
                 endBusy("driver_arrived")
@@ -3555,16 +3811,26 @@ class WayfareViewModel(
         }
     }
 
-    fun driverVerifyPinAndStart(tripId: String, pin: String) {
+    fun driverVerifyPinAndStart(
+        tripId: String,
+        pin: String,
+        onSuccess: () -> Unit = {}
+    ) {
         if (!beginBusy("driver_pin")) return
+        localNav.update { it.copy(driverArrivalPinError = null) }
         viewModelScope.launch {
             try {
                 repository.verifyPinAndStartTrip(tripId, pin)
                     .onSuccess {
-                        localNav.update { it.copy(driverDriveModeMinimized = false) }
+                        localNav.update { it.copy(driverDriveModeMinimized = false, driverArrivalPinError = null) }
                         toast("PIN verified · Drive Mode active", tone = VhayaFeedbackTone.SUCCESS, title = "Trip started")
+                        onSuccess()
                     }
-                    .onFailure { reportActionFailure(it, "Invalid PIN") }
+                    .onFailure { err ->
+                        val msg = friendlyApiErrorMessage(err, "Incorrect 6-digit pickup PIN.")
+                        localNav.update { it.copy(driverArrivalPinError = msg) }
+                        reportActionFailure(err, "Invalid PIN")
+                    }
             } finally {
                 endBusy("driver_pin")
             }
@@ -3705,6 +3971,9 @@ class WayfareViewModel(
 
     fun driverRateRider(tripId: String, stars: Int, tags: List<String>, requesterName: String) {
         repository.saveDriverRiderRating(tripId, stars, tags)
+        viewModelScope.launch {
+            repository.syncDriverRiderRating(tripId, stars, tags)
+        }
         toast(
             message = "Rated $requesterName $stars ★",
             tone = VhayaFeedbackTone.SUCCESS,
@@ -3794,7 +4063,7 @@ class WayfareViewModel(
             repository.saveDriverApplication(app, submit)
                 .onSuccess {
                     val msg = if (submit) {
-                        "Application submitted! Email your documents to ${LaunchPolicy.DRIVER_DOCS_EMAIL} for manual verification."
+                        "Application submitted! Upload your documents below (or email ${LaunchPolicy.DRIVER_DOCS_EMAIL}) for review."
                     } else {
                         "Driver draft saved"
                     }
@@ -3809,6 +4078,29 @@ class WayfareViewModel(
                         it.copy(driverOnboardingBusy = false, driverOnboardingError = msg, driverOnboardingNotice = null)
                     }
                     toast(msg)
+                }
+        }
+    }
+
+    fun uploadDriverDocument(draft: DriverApplication?, docType: DriverDocumentType, uri: Uri) {
+        localNav.update {
+            it.copy(driverOnboardingBusy = true, driverOnboardingError = null, driverOnboardingNotice = null)
+        }
+        viewModelScope.launch {
+            repository.uploadDriverDocument(draft, docType, uri)
+                .onSuccess {
+                    val msg = "${docType.title} uploaded for review."
+                    localNav.update {
+                        it.copy(driverOnboardingBusy = false, driverOnboardingError = null, driverOnboardingNotice = msg)
+                    }
+                    toast(msg, tone = VhayaFeedbackTone.SUCCESS, title = "Document uploaded")
+                }
+                .onFailure { err ->
+                    val msg = friendlyApiErrorMessage(err, "Could not upload ${docType.title.lowercase()}")
+                    localNav.update {
+                        it.copy(driverOnboardingBusy = false, driverOnboardingError = msg, driverOnboardingNotice = null)
+                    }
+                    toast(msg, tone = VhayaFeedbackTone.ERROR)
                 }
         }
     }
@@ -3966,7 +4258,8 @@ class WayfareViewModel(
         val driverVoiceNavEnabled: Boolean,
         val driverHeadingUpEnabled: Boolean,
         val isNetworkConnected: Boolean,
-        val driverQueuedReturnTripId: String?
+        val driverQueuedReturnTripId: String?,
+        val recentGtwTargets: List<DriverCorridorTarget>
     )
 
     private data class CoreSlice(

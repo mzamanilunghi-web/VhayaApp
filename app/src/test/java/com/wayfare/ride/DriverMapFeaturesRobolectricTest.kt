@@ -12,9 +12,14 @@ import com.wayfare.ride.domain.DriverCorridorTarget
 import com.wayfare.ride.domain.DriverMapEngine
 import com.wayfare.ride.domain.HazardType
 import com.wayfare.ride.domain.LaunchPolicy
+import com.sun.net.httpserver.HttpServer
 import com.wayfare.ride.domain.NavigationStep
 import com.wayfare.ride.domain.PaymentMethod
 import com.wayfare.ride.domain.PaymentStatus
+import com.wayfare.ride.domain.PocketItem
+import com.wayfare.ride.domain.PocketItemSize
+import com.wayfare.ride.domain.PocketItemStatus
+import com.wayfare.ride.domain.PolylineCodec
 import com.wayfare.ride.domain.PricingMode
 import com.wayfare.ride.domain.RideCategory
 import com.wayfare.ride.domain.RideCoordinates
@@ -36,6 +41,7 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
+import java.net.InetSocketAddress
 import java.net.ServerSocket
 
 @RunWith(RobolectricTestRunner::class)
@@ -368,5 +374,169 @@ class DriverMapFeaturesRobolectricTest {
         assertNull(cleared)
         assertNull(repo.driverCorridorTarget.value)
         assertNull(store.loadDriverCorridorTarget())
+    }
+
+    @Test
+    fun `gtw polyline matching accepts curved road pickups and falls back offline`() {
+        val corridor = DriverCorridorTarget(
+            label = "Mankweng",
+            destination = mankweng,
+            maxDetourKm = 4.0,
+            strictFilter = true
+        )
+        val curvedBypassWaypoint = RideCoordinates(-23.9700, 29.5960)
+        val curvedPickupTrip = sampleTrip(
+            id = "trip-curved",
+            pickup = RideCoordinates(-23.9740, 29.5960),
+            dest = mankweng,
+            routeDistanceMeters = 18_000
+        )
+
+        // Straight chord from Polokwane to Mankweng misses the 4 km detour window (~8.5 km away)
+        assertNull(DriverMapEngine.evaluateGtwMatch(curvedPickupTrip, polokwane, corridor))
+
+        // With the actual curved OSRM polyline, lateral detour is under 1 km and matches cleanly
+        val curvedRoute = RideRoute(
+            distanceMeters = 32_000,
+            durationSeconds = 1800,
+            encodedPolyline = PolylineCodec.encode(listOf(polokwane, curvedBypassWaypoint, mankweng)),
+            originCoordinates = polokwane,
+            destinationCoordinates = mankweng
+        )
+        val polylineMatch = DriverMapEngine.evaluateGtwMatch(curvedPickupTrip, polokwane, corridor, curvedRoute)
+        assertNotNull(polylineMatch)
+        assertTrue(polylineMatch!!.pickupToCorridorKm < 2.0)
+    }
+
+    @Test
+    fun `gtw arrive-by deadline tightens effective detour and stale targets expire after ttl`() {
+        val now = 1_700_000_000_000L
+        val tightTarget = DriverCorridorTarget(
+            label = "Mankweng",
+            destination = mankweng,
+            maxDetourKm = 10.0,
+            updatedAtMs = now,
+            arriveByEpochMs = now + 15 * 60_000L,
+            expiresAtMs = now + DriverCorridorTarget.DEFAULT_GTW_TTL_MS
+        )
+        assertEquals(3.0, tightTarget.effectiveMaxDetourKm(now), 0.01)
+
+        val midTarget = tightTarget.copy(arriveByEpochMs = now + 35 * 60_000L)
+        assertEquals(4.5, midTarget.effectiveMaxDetourKm(now), 0.01)
+
+        val flexTarget = tightTarget.copy(arriveByEpochMs = null)
+        assertEquals(10.0, flexTarget.effectiveMaxDetourKm(now), 0.01)
+
+        assertFalse(tightTarget.isExpired(now))
+        assertTrue(tightTarget.isExpired(now + DriverCorridorTarget.DEFAULT_GTW_TTL_MS + 1_000L))
+
+        repo.setDriverCorridorTarget(tightTarget)
+        assertNotNull(repo.driverCorridorTarget.value)
+        val expired = repo.clearExpiredGtwTargetIfNeeded(now + DriverCorridorTarget.DEFAULT_GTW_TTL_MS + 1_000L)
+        assertNotNull(expired)
+        assertNull(repo.driverCorridorTarget.value)
+    }
+
+    @Test
+    fun `gtw pocket parcel matcher matches listed corridor parcels and skips delivered items`() {
+        val corridor = DriverCorridorTarget(
+            label = "Mankweng",
+            destination = mankweng,
+            maxDetourKm = 6.0
+        )
+        val listedOnRoute = PocketItem(
+            id = "pkg-1",
+            senderName = "Naledi",
+            senderPhone = "0821112222",
+            originLabel = "Nobody",
+            originCoordinates = nobodyMidpoint,
+            destinationLabel = "Mankweng",
+            destinationCoordinates = mankweng,
+            itemDescription = "Clinic box",
+            size = PocketItemSize.SMALL_BOX,
+            fareZar = 90.0,
+            status = PocketItemStatus.LISTED
+        )
+        val deliveredOnRoute = listedOnRoute.copy(
+            id = "pkg-2",
+            status = PocketItemStatus.DELIVERED
+        )
+        val listedOffRoute = listedOnRoute.copy(
+            id = "pkg-3",
+            originLabel = "Polokwane",
+            originCoordinates = polokwane,
+            destinationLabel = "Seshego",
+            destinationCoordinates = seshego
+        )
+
+        val matches = DriverMapEngine.findMatchingPocketItemsForGtw(
+            items = listOf(listedOnRoute, deliveredOnRoute, listedOffRoute),
+            driverLocation = polokwane,
+            corridor = corridor
+        )
+        assertEquals(listOf("pkg-1"), matches.map { it.item.id })
+    }
+
+    @Test
+    fun `recent gtw targets persist in SessionStore and refreshAll preserves newer local target`() = runBlocking {
+        val recentA = DriverCorridorTarget("Mankweng", mankweng, maxDetourKm = 6.0, updatedAtMs = 5_000L)
+        val recentB = DriverCorridorTarget("Seshego", seshego, maxDetourKm = 4.0, updatedAtMs = 6_000L)
+        repo.setDriverCorridorTarget(recentA)
+        repo.setDriverCorridorTarget(recentB)
+        assertEquals(listOf("Seshego", "Mankweng"), repo.recentGtwTargets.value.map { it.label })
+        assertEquals(listOf("Seshego", "Mankweng"), store.loadRecentGtwTargets().map { it.label })
+
+        val baseNow = System.currentTimeMillis()
+        var serverUpdatedAtMs = baseNow - 60_000L
+        val server = HttpServer.create(InetSocketAddress("127.0.0.1", 0), 0)
+        server.createContext("/") { exchange ->
+            val path = exchange.requestURI.path
+            val payload = when (path) {
+                "/api/driver/gtw" -> """{"gtwTarget":{"label":"Mankweng","destination":{"latitude":${mankweng.latitude},"longitude":${mankweng.longitude}},"maxDetourKm":10.0,"strictFilter":true,"updatedAtMs":$serverUpdatedAtMs}}"""
+                "/api/rides" -> """{"role":"driver","trips":[]}"""
+                "/api/driver/profile" -> """{"profile":{"userId":"driver-sync-1","displayName":"Thabo","verificationStatus":"approved","isOnline":true}}"""
+                "/api/driver/earnings" -> """{"driverId":"driver-sync-1"}"""
+                "/api/driver/subscription" -> """{"subscription":null}"""
+                "/api/support/cases" -> """{"cases":[]}"""
+                else -> "{}"
+            }
+            val bytes = payload.toByteArray(Charsets.UTF_8)
+            exchange.sendResponseHeaders(200, bytes.size.toLong())
+            exchange.responseBody.use { it.write(bytes) }
+        }
+        server.start()
+        try {
+            val port = server.address.port
+            val syncStore = SessionStore(context, apiBaseUrlOverride = "http://127.0.0.1:$port")
+            syncStore.saveSession(
+                UserSession(
+                    userId = "driver-sync-1",
+                    displayName = "Thabo",
+                    email = "thabo@vhaya.co.za",
+                    role = RideRole.DRIVER,
+                    emailVerified = true,
+                    idToken = "jwt-token",
+                    expiresAtEpochMs = baseNow + 3_600_000L
+                )
+            )
+            val syncRepo = WayfareRepository(context, db, syncStore, VhayaApiClient())
+            val localTimestamp = baseNow - 10_000L
+            val localNewer = DriverCorridorTarget("Seshego", seshego, maxDetourKm = 4.0, updatedAtMs = localTimestamp)
+            syncRepo.setDriverCorridorTarget(localNewer)
+
+            // Older server snapshot must not overwrite newer local GTW
+            syncRepo.refreshActiveSessionData()
+            assertEquals("Seshego", syncRepo.driverCorridorTarget.value?.label)
+            assertEquals(localTimestamp, syncRepo.driverCorridorTarget.value?.updatedAtMs)
+
+            // Newer server snapshot updates local GTW
+            val newerServerTs = baseNow + 5_000L
+            serverUpdatedAtMs = newerServerTs
+            syncRepo.refreshActiveSessionData()
+            assertEquals("Mankweng", syncRepo.driverCorridorTarget.value?.label)
+            assertEquals(newerServerTs, syncRepo.driverCorridorTarget.value?.updatedAtMs)
+        } finally {
+            server.stop(0)
+        }
     }
 }

@@ -16,6 +16,8 @@ import com.wayfare.ride.data.SessionStore
 import com.wayfare.ride.data.VhayaApiClient
 import com.wayfare.ride.data.WayfareDatabase
 import com.wayfare.ride.data.WayfareRepository
+import com.wayfare.ride.domain.DriverCorridorTarget
+import com.wayfare.ride.domain.DriverMapEngine
 import com.wayfare.ride.domain.DriverProfileSnapshot
 import com.wayfare.ride.domain.PaymentMethod
 import com.wayfare.ride.domain.PaymentStatus
@@ -791,5 +793,69 @@ class RideNotificationsRobolectricTest {
         } finally {
             server.stop(0)
         }
+    }
+
+    @Test
+    fun `pickNextEligibleOffer respects gtw strict mode and boost priority and annotates offer spec`() {
+        val polokwane = RideCoordinates(-23.9045, 29.4689)
+        val nobody = RideCoordinates(-23.8965, 29.5960)
+        val mankweng = RideCoordinates(-23.8880, 29.7240)
+        val seshego = RideCoordinates(-23.8290, 29.3570)
+
+        val offRouteHighFare = sampleTrip(id = "trip-opp", fare = 260.0).copy(
+            pickup = "Polokwane CBD",
+            destination = "Seshego",
+            pickupCoordinates = polokwane,
+            destinationCoordinates = seshego,
+            route = RideRoute(distanceMeters = 14_000, durationSeconds = 900)
+        )
+        val onRouteTrip = sampleTrip(id = "trip-fwd", fare = 120.0).copy(
+            pickup = "Nobody Village",
+            destination = "Mankweng",
+            pickupCoordinates = nobody,
+            destinationCoordinates = mankweng,
+            route = RideRoute(distanceMeters = 13_000, durationSeconds = 800)
+        )
+
+        val strictGtw = DriverCorridorTarget("Mankweng", mankweng, maxDetourKm = 6.0, strictFilter = true)
+        val boostGtw = strictGtw.copy(strictFilter = false)
+
+        // Strict mode hides the off-route offer even if it arrived first with higher fare
+        val pickedStrict = RideNotificationHelper.pickNextEligibleOffer(
+            trips = listOf(offRouteHighFare),
+            declinedIds = emptySet(),
+            driverCoords = polokwane,
+            corridorTarget = strictGtw
+        )
+        assertNull(pickedStrict)
+
+        // Strict mode returns the aligned offer
+        val pickedStrictAligned = RideNotificationHelper.pickNextEligibleOffer(
+            trips = listOf(offRouteHighFare, onRouteTrip),
+            declinedIds = emptySet(),
+            driverCoords = polokwane,
+            corridorTarget = strictGtw
+        )
+        assertEquals("trip-fwd", pickedStrictAligned?.id)
+
+        // Boost mode prioritizes the aligned offer ahead of off-route offers
+        val pickedBoost = RideNotificationHelper.pickNextEligibleOffer(
+            trips = listOf(offRouteHighFare, onRouteTrip),
+            declinedIds = emptySet(),
+            driverCoords = polokwane,
+            corridorTarget = boostGtw
+        )
+        assertEquals("trip-fwd", pickedBoost?.id)
+
+        val match = DriverMapEngine.evaluateGtwMatch(onRouteTrip, polokwane, strictGtw)
+        assertNotNull(match)
+        val gtwSpec = RideNotificationHelper.buildDriverOfferSpec(
+            trip = onRouteTrip,
+            corridorTarget = strictGtw,
+            gtwMatch = match
+        )
+        assertTrue(gtwSpec.title.startsWith("GTW · "))
+        assertTrue(gtwSpec.metaLabel.startsWith("GTW +"))
+        assertTrue(gtwSpec.bigText.contains("GTW: On way to Mankweng"))
     }
 }

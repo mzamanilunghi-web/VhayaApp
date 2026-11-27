@@ -80,6 +80,7 @@ import com.wayfare.ride.domain.PaymentStatus
 import com.wayfare.ride.domain.PricingMode
 import com.wayfare.ride.domain.RideCategory
 import com.wayfare.ride.domain.RideCoordinates
+import com.wayfare.ride.domain.RideRoute
 import com.wayfare.ride.domain.RideStatus
 import com.wayfare.ride.domain.RideTrip
 import com.wayfare.ride.domain.SmartRideGuards
@@ -565,7 +566,8 @@ fun DriverIncomingOfferCard(
     onCounter: (Double) -> Unit,
     onSkipNext: () -> Unit,
     onDecline: () -> Unit,
-    corridorTarget: DriverCorridorTarget? = null
+    corridorTarget: DriverCorridorTarget? = null,
+    corridorRoute: RideRoute? = null
 ) {
     val colorScheme = MaterialTheme.colorScheme
     val wayfareColors = LocalWayfareColors.current
@@ -576,9 +578,9 @@ fun DriverIncomingOfferCard(
     val deadhead = remember(trip, driverCoords) {
         DriverMapEngine.computeDeadheadVsPaid(trip, driverCoords)
     }
-    val gtwMatch = remember(trip, driverCoords, corridorTarget) {
+    val gtwMatch = remember(trip, driverCoords, corridorTarget, corridorRoute) {
         if (corridorTarget != null) {
-            DriverMapEngine.evaluateGtwMatch(trip, driverCoords, corridorTarget)
+            DriverMapEngine.evaluateGtwMatch(trip, driverCoords, corridorTarget, corridorRoute)
         } else null
     }
 

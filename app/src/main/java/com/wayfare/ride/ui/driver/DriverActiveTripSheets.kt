@@ -105,6 +105,7 @@ import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.wayfare.ride.audio.SoundAlertPlayer
+import com.wayfare.ride.domain.DriverCorridorTarget
 import com.wayfare.ride.domain.DriverIssueCategory
 import com.wayfare.ride.domain.DriverRiderRating
 import com.wayfare.ride.domain.LaunchPolicy
@@ -142,6 +143,7 @@ import com.wayfare.ride.ui.rider.IssueReportingSheet
 import com.wayfare.ride.ui.theme.LocalWayfareColors
 import com.wayfare.ride.ui.theme.WayfareMonoFamily
 import kotlinx.coroutines.launch
+import java.util.Locale
 import kotlin.math.roundToInt
 
 @Composable
@@ -200,7 +202,8 @@ fun DriverActiveTripSheet(
     onQueueReturnRide: (ReturnRideMatch) -> Unit = {},
     onCounterReturnRide: (RideTrip, Double) -> Unit = { _, _ -> },
     onDismissReturnRide: (String) -> Unit = {},
-    onCancelQueuedReturn: () -> Unit = {}
+    onCancelQueuedReturn: () -> Unit = {},
+    corridorTarget: DriverCorridorTarget? = null
 ) {
     val colorScheme = MaterialTheme.colorScheme
     val wayfareColors = LocalWayfareColors.current
@@ -448,6 +451,15 @@ fun DriverActiveTripSheet(
                 overflow = TextOverflow.Ellipsis
             )
 
+            val activeGtw = corridorTarget?.takeUnless { it.isExpired(nowEpochMs) }
+            val afterDropGtwKm = remember(trip.destinationCoordinates, trip.route, activeGtw) {
+                val dropCoords = trip.destinationCoordinates ?: trip.route?.destinationCoordinates
+                if (activeGtw != null && dropCoords != null) {
+                    LaunchPolicy.haversineKm(dropCoords, activeGtw.destination)
+                } else {
+                    null
+                }
+            }
             val showDriverMetaChips = trip.riderVerified == true ||
                 (trip.riderCompletedRides ?: 0) > 0 ||
                 (trip.paymentMethod == PaymentMethod.CASH && trip.cashChangeForZar != null) ||
@@ -456,12 +468,22 @@ fun DriverActiveTripSheet(
                 trip.isSharedRide ||
                 trip.isReturnTrip ||
                 trip.isReturnRequest ||
-                trip.includesGravelRoad
+                trip.includesGravelRoad ||
+                (activeGtw != null && afterDropGtwKm != null)
             if (showDriverMetaChips) {
                 FlowRow(
                     horizontalArrangement = Arrangement.spacedBy(6.dp),
                     verticalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
+                    if (activeGtw != null && afterDropGtwKm != null) {
+                        val shortGtw = activeGtw.label.substringBefore(" ·")
+                        StatusChip(
+                            label = "After drop-off → ${"%.1f".format(Locale.US, afterDropGtwKm)} km to GTW ($shortGtw)",
+                            containerColor = wayfareColors.emeraldContainer,
+                            contentColor = wayfareColors.positive,
+                            modifier = Modifier.testTag("driver_active_gtw_after_trip")
+                        )
+                    }
                     if (trip.category == RideCategory.BAKKIE || trip.category == RideCategory.PARCEL) {
                         StatusChip(
                             label = "${trip.category.label} · ${trip.category.caption}",

@@ -54,6 +54,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableDoubleStateOf
@@ -83,7 +84,10 @@ import com.wayfare.ride.ui.components.MonoBadge
 import com.wayfare.ride.ui.components.tactilePressScale
 import com.wayfare.ride.ui.theme.LocalWayfareColors
 import com.wayfare.ride.ui.theme.WayfareMonoFamily
+import java.text.SimpleDateFormat
+import java.util.Date
 import java.util.Locale
+import kotlin.math.abs
 import kotlin.math.ceil
 import kotlin.math.roundToInt
 
@@ -338,6 +342,9 @@ fun DriverGtwNavBanner(
     onOpenSettings: () -> Unit,
     onOpenExternal: () -> Unit,
     onClear: () -> Unit,
+    matchingPocketCount: Int = 0,
+    onOpenPocketBoard: () -> Unit = {},
+    nowEpochMs: Long = System.currentTimeMillis(),
     modifier: Modifier = Modifier
 ) {
     val colorScheme = MaterialTheme.colorScheme
@@ -348,6 +355,10 @@ fun DriverGtwNavBanner(
     val etaMins = route?.let { ceil(it.durationSeconds / 60.0).toInt().coerceAtLeast(1) }
         ?: (distKm * 1.6).roundToInt().coerceAtLeast(1)
     val shortLabel = target.label.substringBefore(" ·")
+    val effectiveDetourKm = target.effectiveMaxDetourKm(nowEpochMs)
+    val arriveByText = target.arriveByEpochMs?.let { epoch ->
+        " · By ${SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date(epoch))}"
+    }.orEmpty()
 
     Surface(
         shape = RoundedCornerShape(18.dp),
@@ -398,7 +409,7 @@ fun DriverGtwNavBanner(
                     val modeText = if (target.strictFilter) "GTW Only" else "Boost"
                     val matchNote = if (matchedCount > 0) " · $matchedCount on way" else ""
                     Text(
-                        text = "$etaMins min (${"%.1f".format(Locale.US, distKm)} km) · $modeText · ≤${target.maxDetourKm.toInt()} km$matchNote",
+                        text = "$etaMins min (${"%.1f".format(Locale.US, distKm)} km) · $modeText · ≤${"%.1f".format(Locale.US, effectiveDetourKm).removeSuffix(".0")} km$arriveByText$matchNote",
                         fontFamily = WayfareMonoFamily,
                         style = MaterialTheme.typography.labelSmall,
                         color = colorScheme.onSurface,
@@ -411,7 +422,7 @@ fun DriverGtwNavBanner(
                     color = wayfareColors.positive.copy(alpha = 0.14f),
                     border = BorderStroke(1.dp, wayfareColors.positive.copy(alpha = 0.35f)),
                     modifier = Modifier
-                        .heightIn(min = 36.dp)
+                        .heightIn(min = 48.dp)
                         .clip(RoundedCornerShape(12.dp))
                         .clickable(onClick = onToggleMode)
                         .testTag("driver_gtw_mode_toggle")
@@ -449,6 +460,41 @@ fun DriverGtwNavBanner(
                         tint = colorScheme.onSurfaceVariant,
                         modifier = Modifier.size(18.dp)
                     )
+                }
+            }
+            if (matchingPocketCount > 0) {
+                Surface(
+                    shape = RoundedCornerShape(12.dp),
+                    color = colorScheme.surface.copy(alpha = 0.88f),
+                    border = BorderStroke(1.dp, wayfareColors.positive.copy(alpha = 0.35f)),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(start = 12.dp, end = 12.dp, bottom = 10.dp)
+                        .heightIn(min = 48.dp)
+                        .clip(RoundedCornerShape(12.dp))
+                        .clickable(onClick = onOpenPocketBoard)
+                        .testTag("driver_gtw_pocket_chip")
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.Inventory2,
+                            contentDescription = "View Pocket parcels on GTW corridor",
+                            tint = wayfareColors.positive,
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Text(
+                            text = "$matchingPocketCount parcel(s) on way · Tap to view Pocket board",
+                            style = MaterialTheme.typography.labelMedium,
+                            fontWeight = FontWeight.SemiBold,
+                            color = wayfareColors.positive,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
                 }
             }
         }
@@ -577,7 +623,12 @@ fun CorridorFilterSheet(
     searchingPlaces: Boolean = false,
     onSearchPlaces: (String) -> Unit = {},
     savedDestinations: List<SavedDestination> = emptyList(),
-    gtwMatchedCount: Int = 0
+    gtwMatchedCount: Int = 0,
+    recentTargets: List<DriverCorridorTarget> = emptyList(),
+    matchingPocketCount: Int = 0,
+    onOpenPocketBoard: () -> Unit = {},
+    onCacheCorridorTiles: (() -> Unit)? = null,
+    offlinePackDownloading: Boolean = false
 ) {
     val colorScheme = MaterialTheme.colorScheme
     val wayfareColors = LocalWayfareColors.current
@@ -586,6 +637,19 @@ fun CorridorFilterSheet(
     }
     var strictFilter by remember(currentTarget) {
         mutableStateOf(currentTarget?.strictFilter ?: true)
+    }
+    var selectedArriveByMinutes by remember(currentTarget) {
+        val existingDeadline = currentTarget?.arriveByEpochMs
+        val preset = if (existingDeadline == null) {
+            null
+        } else {
+            val mins = ((existingDeadline - System.currentTimeMillis()) / 60_000L).toInt().coerceAtLeast(15)
+            listOf(45, 90, 120).minByOrNull { abs(it - mins) }
+        }
+        mutableStateOf(preset)
+    }
+    var customArriveByEpochMs by remember(currentTarget) {
+        mutableStateOf(currentTarget?.arriveByEpochMs)
     }
     var searchQuery by remember { mutableStateOf("") }
 
@@ -627,12 +691,14 @@ fun CorridorFilterSheet(
         }
     }
 
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     BackHandler { onDismiss() }
-    ModalBottomSheet(onDismissRequest = onDismiss) {
+    ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
         Column(
             verticalArrangement = Arrangement.spacedBy(12.dp),
             modifier = Modifier
                 .fillMaxWidth()
+                .verticalScroll(rememberScrollState())
                 .padding(horizontal = 20.dp, vertical = 10.dp)
                 .padding(bottom = 24.dp)
         ) {
@@ -697,6 +763,99 @@ fun CorridorFilterSheet(
                                 text = "$gtwMatchedCount matching offer(s) along your corridor",
                                 style = MaterialTheme.typography.labelSmall,
                                 color = colorScheme.onSurface
+                            )
+                        }
+                    }
+                }
+            }
+
+            if (matchingPocketCount > 0) {
+                OutlinedButton(
+                    onClick = {
+                        onDismiss()
+                        onOpenPocketBoard()
+                    },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(min = 48.dp)
+                        .testTag("gtw_sheet_pocket_btn")
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.Inventory2,
+                        contentDescription = null,
+                        tint = wayfareColors.positive,
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Spacer(Modifier.width(8.dp))
+                    Text(
+                        text = "$matchingPocketCount Pocket parcel(s) along corridor",
+                        fontWeight = FontWeight.SemiBold,
+                        color = wayfareColors.positive
+                    )
+                }
+            }
+
+            if (currentTarget != null && onCacheCorridorTiles != null) {
+                OutlinedButton(
+                    onClick = onCacheCorridorTiles,
+                    enabled = !offlinePackDownloading,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(min = 48.dp)
+                        .testTag("gtw_cache_tiles_btn")
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.DownloadForOffline,
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Spacer(Modifier.width(8.dp))
+                    Text(
+                        text = if (offlinePackDownloading) "Caching corridor offline..." else "Cache corridor offline",
+                        fontWeight = FontWeight.SemiBold
+                    )
+                }
+            }
+
+            if (recentTargets.isNotEmpty()) {
+                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Text(
+                        text = "Recent GTW",
+                        style = MaterialTheme.typography.labelMedium,
+                        fontWeight = FontWeight.SemiBold,
+                        color = colorScheme.onSurfaceVariant
+                    )
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .horizontalScroll(rememberScrollState())
+                    ) {
+                        recentTargets.forEachIndexed { idx, recent ->
+                            val recentLabel = recent.label.substringBefore(" ·")
+                            val isSelected = currentTarget?.label == recent.label
+                            FilterChip(
+                                selected = isSelected,
+                                onClick = {
+                                    onSelectTarget(
+                                        recent.copy(
+                                            arriveByEpochMs = customArriveByEpochMs ?: recent.arriveByEpochMs,
+                                            expiresAtMs = System.currentTimeMillis() + DriverCorridorTarget.DEFAULT_GTW_TTL_MS
+                                        )
+                                    )
+                                    onDismiss()
+                                },
+                                label = {
+                                    Text(
+                                        text = recentLabel,
+                                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
+                                    )
+                                },
+                                colors = FilterChipDefaults.filterChipColors(
+                                    selectedContainerColor = wayfareColors.emeraldContainer,
+                                    selectedLabelColor = wayfareColors.positive
+                                ),
+                                modifier = Modifier.heightIn(min = 48.dp).testTag("gtw_recent_chip_$idx")
                             )
                         }
                     }
@@ -812,6 +971,42 @@ fun CorridorFilterSheet(
                 }
             }
 
+            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                Text(
+                    text = "Arrive by",
+                    style = MaterialTheme.typography.labelMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    color = colorScheme.onSurfaceVariant
+                )
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    listOf(
+                        Triple(null, "Flexible", "gtw_arrive_chip_flex"),
+                        Triple(45, "+45 min", "gtw_arrive_chip_45"),
+                        Triple(90, "+90 min", "gtw_arrive_chip_90"),
+                        Triple(120, "+2 hr", "gtw_arrive_chip_120")
+                    ).forEach { (minutes, label, tag) ->
+                        val selected = selectedArriveByMinutes == minutes
+                        FilterChip(
+                            selected = selected,
+                            onClick = {
+                                selectedArriveByMinutes = minutes
+                                val nextEpoch = minutes?.let { System.currentTimeMillis() + it * 60_000L }
+                                customArriveByEpochMs = nextEpoch
+                                if (currentTarget != null) {
+                                    onSelectTarget(currentTarget.copy(arriveByEpochMs = nextEpoch))
+                                }
+                            },
+                            label = { Text(label, fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium) },
+                            colors = FilterChipDefaults.filterChipColors(
+                                selectedContainerColor = wayfareColors.emeraldContainer,
+                                selectedLabelColor = wayfareColors.positive
+                            ),
+                            modifier = Modifier.heightIn(min = 48.dp).testTag(tag)
+                        )
+                    }
+                }
+            }
+
             OutlinedButton(
                 onClick = { onPickOnMap(selectedDetourKm, strictFilter) },
                 modifier = Modifier
@@ -893,7 +1088,9 @@ fun CorridorFilterSheet(
                                             label = shortName,
                                             destination = place.coordinates,
                                             maxDetourKm = selectedDetourKm,
-                                            strictFilter = strictFilter
+                                            strictFilter = strictFilter,
+                                            arriveByEpochMs = customArriveByEpochMs,
+                                            expiresAtMs = System.currentTimeMillis() + DriverCorridorTarget.DEFAULT_GTW_TTL_MS
                                         )
                                     )
                                     onDismiss()

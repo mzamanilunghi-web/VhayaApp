@@ -225,6 +225,8 @@ data class SavedDestination(
 data class RideTrip(
     val id: String,
     val riderId: String,
+    val riderName: String? = null,
+    val riderPhone: String? = null,
     val driverId: String? = null,
     val pickup: String,
     val destination: String,
@@ -601,6 +603,7 @@ data class PendingOfflineAction(
     val priority: String = "normal",
     val message: String = "",
     val rating: Int = 5,
+    val feedbackTags: List<String> = emptyList(),
     val latitude: Double = 0.0,
     val longitude: Double = 0.0,
     val createdAtMs: Long = System.currentTimeMillis()
